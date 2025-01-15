@@ -18,38 +18,24 @@ function asyncHandler(handler) {
     };
 }
 
-//레퍼런스 추가
+// 레퍼런스 추가
 export const addReference = asyncHandler(async (req, res) => {
-    try {
-      const { category, title, keywords, memo, resources } = req.body;
-      const newReference = new Reference({
-        category,
-        title,
-        keywords,
-        memo,
-        resources,
-      });
-      await newReference.save();
-      res.status(201).json({ message: '레퍼런스 추가 성공', reference: newReference });
-    } catch (error) {
-      res.status(500).json({ message: '레퍼런스 추가 오류', error });
-    }
-  });
+    const { category, title, keywords, memo, resources } = req.body;
+    const newReference = new Reference({ category, title, keywords, memo, resources });
+    await newReference.save();
+    res.status(201).json({ message: '레퍼런스 추가 성공', reference: newReference });
+});
 
-  //레퍼런스 수정
-  export const updateReference = asyncHandler(async (req, res) => {
-    try {
-      const { category, title, keywords, memo, resources } = req.body;
-      const updatedReference = await Reference.findByIdAndUpdate(
-        req.params.id,
+// 레퍼런스 수정
+export const updateReference = asyncHandler(async (req, res) => {
+    const { category, title, keywords, memo, resources } = req.body;
+    const updatedReference = await Reference.findByIdAndUpdate(
+        req.params.referenceId,
         { category, title, keywords, memo, resources },
         { new: true }
-      );
-      if (!updatedReference) {
+    );
+    if (!updatedReference) {
         return res.status(404).json({ message: '레퍼런스를 찾지 못하였습니다.' });
-      }
-      res.status(200).json({ message: '레퍼런스가 성공적으로 수정되었습니다.', reference: updatedReference });
-    } catch (error) {
-      res.status(500).json({ message: '레퍼런스 수정 오류', error });
     }
-  });
+    res.status(200).json({ message: '레퍼런스가 성공적으로 수정되었습니다.', reference: updatedReference });
+});
