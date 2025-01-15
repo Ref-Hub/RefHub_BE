@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const referenceSchema = new mongoose.Schema({
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
@@ -6,6 +6,9 @@ const referenceSchema = new mongoose.Schema({
     keywords: [String],
     memo: String,
     resources: [{ type: String }],
-  });
-  
-  module.exports = mongoose.model('Reference', referenceSchema);
+    createdAt: { type: Date, default: Date.now },
+});
+
+const Reference = mongoose.model('Reference', referenceSchema);
+
+export default Reference;
