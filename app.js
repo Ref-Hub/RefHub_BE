@@ -1,18 +1,39 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import * as dotenv from 'dotenv';
-import referenceRoutes from './routes/referenceRoutes.js';
+"use strict";
 
+const express = require("express");
+const dotenv = require("dotenv");
+const connectDB = require("./db/connect");
+const { StatusCodes } = require("http-status-codes");
+const collectionRoutes = require("./routes/collectionRoutes");
+
+require("./models/Collection");
+require("./models/User");
+
+// .env 설정
 dotenv.config();
-const app = express();
 
+const app = express();
 app.use(cors());
 app.use(express.json());
+connectDB();
 
-mongoose.connect(process.env.DATABASE_URL).then(() => console.log('Connected to DB'));
+// 에러 처리 미들웨어
+const errorHandler = (err, req, res, next) => {
+  console.error("Error: ", err);
+  res
+    .status(StatusCodes.INTERNAL_SERVER_ERROR)
+    .json({ message: "서버 오류가 발생했습니다." });
+};
 
-//라우터 설정 (레퍼런스만 추가되어있음)
-app.use('/', referenceRoutes);
+// app.use("/users", userRoutes);
+// app.use("/collections/references", referenceRoutes);
+app.use("/collections", collectionRoutes);
 
-app.listen(process.env.PORT || 3000, () => console.log('Server Started'));
+// 테스트용 API
+app.get("/", async (req, res, next) => {
+  console.log("hello world!");
+  res.status(StatusCodes.OK).json({ message: "접속 성공" });
+});
+
+app.use(errorHandler);
+app.listen(process.env.PORT || 3000, () => console.log("Server Started"));
