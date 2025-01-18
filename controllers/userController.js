@@ -164,6 +164,74 @@ export const refreshAccessToken = async (req, res) => {
   }
 };
 
+// [비밀번호 재설정]
+// 비밀번호 재설정을 위한 인증번호 발송 함수
+export const resetPasswordEmail = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).send('이메일을 입력해주세요.');
+  }
+
+  const verificationCode = Math.floor(100000 + Math.random() * 900000);
+  const verificationExpires = Date.now() + 10 * 60 * 1000;
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).send('등록되지 않은 이메일입니다.');
+    }
+
+    user.verificationCode = verificationCode;
+    user.verificationExpires = verificationExpires;
+    await user.save();
+
+    await sendVerificationEmail(user.name, email, verificationCode);
+
+    res.status(200).send('비밀번호 재설정을 위한 인증번호가 발송되었습니다.');
+  } catch (error) {
+    res.status(500).send('비밀번호 재설정을 위한 인증번호 메일 전송 중 오류가 발생했습니다.');
+  }
+};
+
+// 비밀번호 재설정 함수
+export const resetPassword = async (req, res) => {
+  const { email, verificationCode, newPassword, confirmPassword } = req.body;
+
+  if (!email || !verificationCode || !newPassword || !confirmPassword) {
+    return res.status(400).send('모든 정보를 입력해주세요.');
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).send('비밀번호가 일치하지 않습니다.');
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
+      return res.status(400).send('인증번호가 일치하지 않습니다.');
+    }
+
+    if (user.verificationExpires < Date.now()) {
+      return res.status(400).send('인증번호가 만료되었습니다.');
+    }
+
+    // 비밀번호 해싱 및 저장
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.verificationCode = undefined;
+    user.verificationExpires = undefined;
+
+    await user.save();
+
+    res.status(200).send('비밀번호가 성공적으로 변경되었습니다.');
+  } catch (error) {
+    res.status(500).send('비밀번호 변경 중 오류가 발생했습니다.');
+  }
+};
+
 // 유저 정보 조회 함수 (임시)
 export const getUser = async (req, res) => {
   const { email } = req.params;
