@@ -3,6 +3,7 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import { smtpTransport } from '../config/email.js';
 import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
 
 const appDir = path.resolve();
 
@@ -86,6 +87,80 @@ export const createUser = async (req, res) => {
     res.status(200).send('회원가입이 완료되었습니다.');
   } catch (error) {
     res.status(500).send('회원가입 중 오류가 발생했습니다.');
+  }
+};
+
+// [로그인]
+// 로그인 함수
+export const loginUser = async (req, res) => {
+  const { email, password, autoLogin = false } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).send('이메일과 비밀번호를 모두 입력해주세요.');
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).send('등록되지 않은 이메일입니다.');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(400).send('비밀번호가 올바르지 않습니다.');
+    }
+
+    // Access Token 생성
+    const accessToken = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Refresh Token 생성
+    let refreshToken = null;
+    if (autoLogin) {
+      refreshToken = jwt.sign(
+        { id: user._id, email: user.email },
+        process.env.JWT_REFRESH_SECRET,
+        { expiresIn: '7d' }
+      );
+    }
+
+    res.status(200).json({message: '로그인이 완료되었습니다.', accessToken, refreshToken, autoLogin});
+  } catch (error) {
+    res.status(500).send('로그인 중 오류가 발생했습니다.');
+  }
+};
+
+// 로그아웃 함수
+export const logoutUser = async (req, res) => {
+  res.status(200).send('로그아웃이 완료되었습니다.');
+};
+
+// 토큰 갱신 함수
+export const refreshAccessToken = async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).send('Refresh Token이 없습니다.');
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+
+    // 새로운 Access Token 발급
+    const newAccessToken = jwt.sign(
+      { id: decoded.id, email: decoded.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.status(200).json({ accessToken: newAccessToken });
+  } catch (error) {
+    res.status(403).send('토큰 갱신 중 오류가 발생했습니다. 유효하지 않은 Refresh Token입니다.');
   }
 };
 
