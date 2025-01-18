@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Code</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .email-container {
+      background: #F9FAF9;
+      border-radius: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+    h2 {
+      color: #282828;
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #676967;
+      font-size: 1rem;
+      margin-bottom: 20px;
+    }
+    .verification-code {
+      color: #1ABC9C;
+      font-weight: bold;
+      font-size: 1.5rem;
+      margin: 10px 0;
+    }
+    footer {
+      margin-top: 30px;
+      font-size: 0.9rem;
+      color: #676967;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <h2><%= name %>님, 안녕하세요!😊</h2>
+    <p>RefHub 계정 본인 확인을 위한 메일입니다.<br>
+      하단의 번호를 입력하여 인증을 완료해주세요!<br>
+      (⚠️인증번호는 10분 후에 만료됩니다.⚠️)</p>
+    <p class="verification-code"><%= authCode %></p>
+    <footer>📁RefHub</footer>
+  </div>
+</body>
+</html>

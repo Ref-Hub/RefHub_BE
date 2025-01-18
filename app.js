@@ -2,7 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
-import referenceRoutes from './routes/referenceRoutes.js';
+
+//import referenceRoutes from './routes/referenceRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -12,7 +14,7 @@ app.use(express.json());
 
 mongoose.connect(process.env.DATABASE_URL).then(() => console.log('Connected to DB'));
 
-//라우터 설정 (레퍼런스만 추가되어있음)
-app.use('/', referenceRoutes);
+//app.use('/', referenceRoutes);
+app.use('/api/users', userRoutes);
 
 app.listen(process.env.PORT || 3000, () => console.log('Server Started'));
