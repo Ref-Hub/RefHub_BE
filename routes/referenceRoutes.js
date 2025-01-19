@@ -1,5 +1,8 @@
 import express from 'express';
-import Reference from '../models/Reference.js'
+import { Collection, Reference, Keyword, Refkey } from '../models/Reference.js';
+import { createReference } from '../controllers/referenceController.js';
+import { upload } from '../middlewares/fileUpload.js';
+import path from 'path';
 
 const router = express.Router();
 
@@ -21,22 +24,7 @@ function asyncHandler(handler) {
 }
 
 //레퍼런스 추가 API
-router.post('/add', async (req, res) => {
-    try {
-      const { category, title, keywords, memo, resources } = req.body;
-      const newReference = new Reference({
-        category,
-        title,
-        keywords,
-        memo,
-        resources,
-      });
-      await newReference.save();
-      res.status(201).json({ message: '레퍼런스 추가 성공', reference: newReference });
-    } catch (error) {
-      res.status(500).json({ message: '레퍼런스 추가 오류', error });
-    }
-  });
+router.post('/add', upload.array("datas", 5), createReference);
 
   //레퍼런스 수정 API
   router.put('/:id', async (req, res) => {
