@@ -39,3 +39,24 @@ export const updateReference = asyncHandler(async (req, res) => {
     }
     res.status(200).json({ message: '레퍼런스가 성공적으로 수정되었습니다.', reference: updatedReference });
 });
+
+// 레퍼런스 삭제
+export const deleteReference = asyncHandler(async (req, res) => {
+    try {
+      const { referenceId } = req.params;
+  
+      const deletedReference = await Reference.findByIdAndDelete(referenceId);
+  
+      if (!deletedReference) {
+        return res.status(404).json({ message: '레퍼런스를 찾지 못하였습니다.' });
+      }
+  
+      res.status(200).json({
+        message: '레퍼런스가 성공적으로 삭제되었습니다.',
+        reference: deletedReference,
+      });
+    } catch (error) {
+      res.status(500).json({ message: '레퍼런스 삭제 오류', error });
+    }
+  });
+  
