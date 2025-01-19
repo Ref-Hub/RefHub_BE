@@ -1,9 +1,8 @@
-"use strict";
-const { StatusCodes } = require("http-status-codes");
-const Collection = require("../models/Collection");
-const User = require("../models/User");
-const { createTransport } = require("nodemailer");
-const config = require("../config");
+import { StatusCodes } from "http-status-codes";
+import Collection from "../models/Collection.js";
+import User from "../models/User.js";
+import { createTransport } from "nodemailer";
+import config from "../config.js";
 
 const duplicate = (err, req, res, next) => {
   console.error("Error: ", err);
@@ -105,7 +104,7 @@ const setSharedUsers = async (req, res, next) => {
       existingUser.role = role;
       console.log();
       await coll.save();
-      res.status(StatusCodes.OK).json("사용자 수정 성공");
+      res.status(StatusCodes.OK).json(({ message: "사용자 수정 성공" }));
     } else {
       coll.sharedWith.push({ userId: user ? user._id : null, role });
       await coll.save();
@@ -122,7 +121,9 @@ const sendUsers = async (req, res, next) => {
     const subject = "Welcome to RefHub!";
     const text = "Hello, welcome to our service";
     await sendEmail(to, subject, text);
-    res.status(StatusCodes.CREATED).json("사용자 추가 및 메일 보내기 성공");
+    res
+      .status(StatusCodes.CREATED)
+      .json({ message: "사용자 추가 및 메일 보내기 성공" });
   } catch (err) {
     next(err);
   }
@@ -149,7 +150,7 @@ const removeSharedUser = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export default {
   setPrivate,
   getSharedUsers,
   setSharedUsers,

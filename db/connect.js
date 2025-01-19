@@ -1,6 +1,10 @@
-"use strict";
-const dotenv = require("dotenv");
-const mongoose = require("mongoose");
+import dotenv from "dotenv";
+import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // .env 파일을 로드하여 환경 변수 설정
 dotenv.config({ path: __dirname + "/../.env" });
@@ -19,4 +23,4 @@ const connectDB = async () => {
   }
 };
 
-module.exports = connectDB;
+export default connectDB;

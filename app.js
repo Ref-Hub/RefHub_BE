@@ -1,13 +1,13 @@
 "use strict";
 
-const express = require("express");
-const dotenv = require("dotenv");
-const connectDB = require("./db/connect");
-const { StatusCodes } = require("http-status-codes");
-const collectionRoutes = require("./routes/collectionRoutes");
-
-require("./models/Collection");
-require("./models/User");
+import express from "express";
+import dotenv from "dotenv";
+import connectDB from "./db/connect.js";
+import { StatusCodes } from "http-status-codes";
+import cors from "cors";
+import Collection from "./models/Collection.js";
+import User from "./models/User.js";
+import collectionRoutes from "./routes/collectionRoutes.js";
 
 // .env 설정
 dotenv.config();

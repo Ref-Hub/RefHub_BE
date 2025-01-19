@@ -1,8 +1,10 @@
 "use strict";
 
-require("dotenv").config();
+import dotenv from "dotenv"
 
-module.exports = {
+dotenv.config();
+
+export default {
   mailer: {
     gmailUser: process.env.GMAIL_OAUTH_USER,
     gmailClientId: process.env.GMAIL_OAUTH_CLIENT_ID,

@@ -1,8 +1,6 @@
-"use strict";
-
-const express = require("express");
-const collectionController = require("../controllers/collectionController");
-const sharingController = require("../controllers/sharingController");
+import express from "express";
+import collectionController from "../controllers/collectionController.js";
+import sharingController from "../controllers/sharingController.js";
 
 const router = express.Router();
 
@@ -41,4 +39,4 @@ router.delete(
   sharingController.removeSharedUser
 );
 
-module.exports = router;
+export default router;

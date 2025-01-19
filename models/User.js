@@ -1,7 +1,5 @@
-"use strict";
 // 컬렉션 코드 작성을 위해 임의로 작성
-
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,4 +13,5 @@ const userSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-module.exports = mongoose.model("User", userSchema, "users");
+const User = mongoose.model("User", userSchema, "users");
+export default User;

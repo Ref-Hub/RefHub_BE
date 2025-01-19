@@ -1,7 +1,7 @@
-const { StatusCodes } = require("http-status-codes");
-const Collection = require("../models/Collection");
-const mongoose = require("mongoose");
-const { MongoError } = require("mongodb");
+import { StatusCodes } from "http-status-codes";
+import Collection from "../models/Collection.js";
+import mongoose from "mongoose";
+import { MongoError } from "mongodb";
 
 const duplicate = (err, req, res, next) => {
   console.error("Error: ", err);
@@ -200,7 +200,7 @@ const toggleFavorite = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export default {
   createCollection,
   getCollection,
   updateCollection,
