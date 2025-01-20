@@ -4,21 +4,26 @@ import path from 'path';
 // 이미지 저장
 const storage = multer.diskStorage({
     destination: function(req, file, cb){
-      const dataType = req.body.dataType;
-      let originalName = req.body.originalName;
+      const { collectionName, title } = req.body;
       let folder = "upload/";
-      if (dataType == "image") folder = "upload/images/";
-      if (dataType == "pdf") folder = "upload/pdfs/";
-      if (dataType == "link"){
-        folder = "upload/links/";
-        originalName = originalName.split("//")[1].split("/")[0];
+
+      if (fileType == "image") {
+        folder = `upload/images/${collectionName}_${title}`;
+        fs.mkdir(folder, { recursive: true }, (err) => {
+          // 새로운 폴더 생성, 폴더 이름 collectionName_title
+          if (err){ console.log("미들웨어 이미지 저장에서 에러 발생")}
+          cb(null, folder); // 
+        });
+        
       }
-      if (dataType == "file") folder = "upload/files/";
-      cb(null, folder ); // 파일 저장 위치 
+      else {
+        if (fileType == "pdf") folder = "upload/pdfs/";
+        if (fileType == "file") folder = "upload/files/";
+        cb(null, folder ); // 파일 저장 위치 
+      }
     },
-    newName: function(req, file, cb){
-      cb(null, Date.now() + "_" + file.originalname);
-      // 파일 이름 : 현재 시간 + 원본 파일 이름 
+    filename: (req, file, cb) => {
+      cb(null, newName);
     }
   });
 

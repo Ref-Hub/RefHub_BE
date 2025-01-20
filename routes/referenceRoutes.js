@@ -24,24 +24,8 @@ function asyncHandler(handler) {
 }
 
 //레퍼런스 추가 API
-router.post('/add', upload.array("datas", 5), createReference);
+router.post('/add', upload.array("files", 5), createReference);
 
-  //레퍼런스 수정 API
-  router.put('/:id', async (req, res) => {
-    try {
-      const { category, title, keywords, memo, resources } = req.body;
-      const updatedReference = await Reference.findByIdAndUpdate(
-        req.params.id,
-        { category, title, keywords, memo, resources },
-        { new: true }
-      );
-      if (!updatedReference) {
-        return res.status(404).json({ message: '레퍼런스를 찾지 못하였습니다.' });
-      }
-      res.status(200).json({ message: '레퍼런스가 성공적으로 수정되었습니다.', reference: updatedReference });
-    } catch (error) {
-      res.status(500).json({ message: '레퍼런스 수정 오류', error });
-    }
-  });
+  
 
-  export default router;
+export default router;

@@ -13,6 +13,7 @@ const referenceSchema = new Schema({
   title: {
       required: true,
       type: String,
+      maxlength: [20, '최대 글자수를 초과하였습니다.'],
   },
   createAt: {
       required: true,
@@ -25,12 +26,15 @@ const referenceSchema = new Schema({
   },
   memo: {
     type: String,
+    maxlength: [500, '최대 글자수를 초과하였습니다.'],
   },
   files: [
     {
-      dataType: String,
+      fileType: String,
       originalName: String,
-      storedPath: String,
+      imageList: [String],
+      newName: String,
+      filePath: String,
     },
   ],
 });
@@ -53,11 +57,25 @@ const refkeySchema = new Schema ({
     ref: 'Keyword',
     require: true,
   }
+});
+const listSchema = new Schema({
+  listUrl: {
+    type: String,
+    require: true,
+  },
+  referenceId:{
+    type: mongoose.Schema.Types.ObjectId,
+      ref: 'Reference',
+      require: true,
+  }
 })
+
+
 // 모델 정의 
   const Collection = mongoose.model('Collection', collectionSchema);
   const Reference = mongoose.model('Reference', referenceSchema);
   const Keyword = mongoose.model('Keyword', keywordSchema);
   const Refkey = mongoose.model('Refkey', refkeySchema);
+  const List = mongoose.model('List', listSchema);
 
-export { Collection, Reference, Keyword, Refkey };
+export { Collection, Reference, Keyword, Refkey, List };
