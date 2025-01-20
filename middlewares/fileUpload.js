@@ -5,18 +5,23 @@ import path from 'path';
 const storage = multer.diskStorage({
     destination: function(req, file, cb){
       const { collectionName, title } = req.body;
-      let folder = "upload/";
+      let folder = `upload/images/${collectionName}_${title}`;
+      let imageFile_nember = 0;
 
       if (fileType == "image") {
-        folder = `upload/images/${collectionName}_${title}`;
+        if(!fs.existsSync(filder)){
+          folder = `upload/images/${collectionName}_${title}`;
+        }
+        else { // 사진 묶음이 2개 이상이라, collection_title 폴더가 이미 존재하는 경우 
+          imageFile_nember++;
+          folder = folder + imageFile_nember.toString();
+          // collection_title_1 과 같은 폴더 생성 
+        }
         fs.mkdir(folder, { recursive: true }, (err) => {
-          // 새로운 폴더 생성, 폴더 이름 collectionName_title
-          if (err){ console.log("미들웨어 이미지 저장에서 에러 발생")}
-          cb(null, folder); // 
+          if (err){ console.log("컨트롤러 이미지 저장에서 에러 발생")}
+          cb(null, folder);
         });
-        
-      }
-      else {
+      } else {
         if (fileType == "pdf") folder = "upload/pdfs/";
         if (fileType == "file") folder = "upload/files/";
         cb(null, folder ); // 파일 저장 위치 

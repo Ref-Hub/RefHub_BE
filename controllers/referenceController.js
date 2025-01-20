@@ -34,6 +34,9 @@ export const createReference = async (req, res) => {
 
         // 첨부파일 저장 
         let fileArray = [];
+        let imageFile_nember = 0;
+        const defaultImageFolder = `upload/images/${collectionName}_${title}`;
+        const defaultImageNewName = `${collectionName}_${title}`;
         for (const file of files){
           let { fileType } = file;
           // link는 lists에 저장
@@ -43,31 +46,34 @@ export const createReference = async (req, res) => {
                 listUrl: file.originalName,
                 referenceId: saveReference._id,
               });
-
               const saveList = await newList.save();
             }
             else {
               return res.status(400).json({ message: "http:// 또는 https://로 시작하는 링크를 입력해 주세요."})
             }
           } else if (fileType == "image"){ // images
-            let folder = 'upload/images/';
-            let newName = `${collectionName}_${title}`;
-            let filePath = path.join(folder, newName );
-
-            file.newName = newName;
-            file.filePath = filePath;
-            fileArray.push(file);
             // collectionName_title 폴더를 upload/images 안에 생성 
-            fs.mkdir(filePath, { recursive: true }, (err) => {
+            let imageFolder = defaultImageFolder;
+            let imageNewName = defaultImageNewName;
+            if(!fs.existsSync(imageFolder)) {}
+            else { // 사진 묶음이 2개 이상이라, collection_title 폴더가 이미 존재하는 경우 
+              imageFile_nember++;
+              imageNewName = defaultImageNewName + imageFile_nember.toString();
+              imageFolder = `${defaultImageFolder}_${imageFile_nember}`;
+            }
+            file.newName = imageNewName;
+            file.filePath = imageFolder;
+            fileArray.push(file);
+
+            // 폴더 생성 
+            fs.mkdir(imageFolder, { recursive: true }, (err) => {
               if (err){ console.log("컨트롤러 이미지 저장에서 에러 발생")}
             });
-            
 
             file.imageList.forEach(( imegefile, index) => {
-              newName = `${Date.now()}_${collectionName}_${title}_${imegefile}`;
-              folder = `upload/images/${collectionName}_${title}`;
-              filePath = path.join(folder, newName );
-              fs.writeFileSync(filePath, "");
+              let newName = `${Date.now()}_${collectionName}_${title}_${imegefile}`;
+              let imageFilePath = path.join(imageFolder, newName );
+              fs.writeFileSync(imageFilePath, "");
               // 생성된 폴더 안에 image 저장, image 이름 : Date.Now()_collectionName_title_원본이름
             })
 
