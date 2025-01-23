@@ -15,3 +15,6 @@ dist/
 
 # http 파일 제외
 Requests/
+
+# upload 파일 제외
+upload/
