@@ -33,7 +33,15 @@ const validateConfirmPassword = check('confirmPassword')
 // [회원가입]
 // 이메일 인증번호 발송 함수
 const sendVerificationEmail = async (name, email, verificationCode, subject) => {
-  const emailTemplatePath = path.join(appDir, 'templates', 'authEmail.ejs');
+  let templateFile;
+  
+  if (subject === '📁RefHub📁 회원가입 인증 번호') {
+    templateFile = 'authEmail.ejs';
+  } else if (subject === '📁RefHub📁 비밀번호 재설정 인증 번호') {
+    templateFile = 'authPassword.ejs';
+  };
+
+  const emailTemplatePath = path.join(appDir, 'templates', templateFile);
   const emailTemplate = await ejs.renderFile(emailTemplatePath, { authCode: verificationCode, name });
 
   const mailOptions = {
