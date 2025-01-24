@@ -1,17 +1,23 @@
-// 컬렉션 코드 작성을 위해 임의로 작성
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-    },
-    email: {
-      type: String,
-    },
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    maxlength: 10,
   },
-  { versionKey: false }
-);
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  password: {
+    type: String,
+  },
+  verificationCode: {
+    type: Number,
+    max: 999999,
+  },
+});
 
-const User = mongoose.model("User", userSchema, "users");
+const User = mongoose.model("User", userSchema);
 export default User;
