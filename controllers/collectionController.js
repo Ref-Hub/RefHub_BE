@@ -1,34 +1,13 @@
 import { StatusCodes } from "http-status-codes";
 import Collection from "../models/Collection.js";
-import mongoose from "mongoose";
+import { Reference } from "../models/Reference.js";
 import { MongoError } from "mongodb";
 
-const duplicate = (err, req, res, next) => {
-  console.error("Error: ", err);
-  res.status(StatusCodes.BAD_REQUEST).json({
-    message: "중복된 이름입니다.",
-  });
-};
-
-const exceedMaxLength = (err, req, res, next) => {
-  console.error("Error: ", err);
-  res.status(StatusCodes.BAD_REQUEST).json({
-    message: "20자 이내로 작성해주세요.",
-  });
-};
-
-const notFound = (err, req, res, next) => {
-  console.error("Error: ", err);
-  res.status(StatusCodes.NOT_FOUND).json({
-    message: "찾을 수 없습니다.",
-  });
-};
-
 const createCollection = async (req, res, next) => {
-  const { title } = req.body;
-  const createdBy = "67851e7cd00c4a5843c88303";
-  // createdBy 수정 필요
   try {
+    const { title } = req.body;
+    const createdBy = req.user.id;
+
     const coll = await Collection.create({
       title: title,
       createdBy: createdBy,
@@ -36,47 +15,49 @@ const createCollection = async (req, res, next) => {
     res.status(StatusCodes.CREATED).json(coll);
   } catch (err) {
     if (err instanceof MongoError && err.code === 11000) {
-      return duplicate(err, req, res, next);
-    }
-    if (err instanceof mongoose.Error.ValidationError) {
-      return exceedMaxLength(err, req, res, next);
+      res.status(StatusCodes.BAD_REQUEST).json({
+        error: "중복된 이름입니다.",
+      });
+      return;
     }
     next(err);
   }
 };
 
 const getCollection = async (req, res, next) => {
-  const { page = 1, sortBy = "latest", search = "" } = req.query;
-  const pageSize = 15;
-  const createdBy = "67851e7cd00c4a5843c88303";
-  // createdBy 수정 필요
-  let sort = {};
-  switch (sortBy) {
-    case "latest":
-      sort = { isFavorite: -1, createdAt: -1 };
-      break;
-    case "oldest":
-      sort = { isFavorite: -1, createdAt: 1 };
-      break;
-    case "sortAsc":
-      sort = { isFavorite: -1, title: 1 };
-      break;
-    case "sortDesc":
-      sort = { isFavorite: -1, title: -1 };
-      break;
-    default:
-      sort = { isFavorite: -1, createdAt: -1 };
-      break;
-  }
-
-  const searchCondition = search
-    ? { title: { $regex: search, $options: "i" } }
-    : {};
   try {
+    const { page = 1, sortBy = "latest", search = "" } = req.query;
+    const pageSize = 15;
+    const createdBy = req.user.id;
+
+    let sort = {};
+    switch (sortBy) {
+      case "latest":
+        sort = { isFavorite: -1, createdAt: -1 };
+        break;
+      case "oldest":
+        sort = { isFavorite: -1, createdAt: 1 };
+        break;
+      case "sortAsc":
+        sort = { isFavorite: -1, title: 1 };
+        break;
+      case "sortDesc":
+        sort = { isFavorite: -1, title: -1 };
+        break;
+      default:
+        sort = { isFavorite: -1, createdAt: -1 };
+        break;
+    }
+
+    const searchCondition = search
+      ? { title: { $regex: search, $options: "i" } }
+      : {};
+
     const totalItemCount = await Collection.countDocuments({
       ...searchCondition,
       $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
     });
+
     const totalPages = Math.ceil(totalItemCount / pageSize);
     const currentPage = Number(page) > totalPages ? totalPages : Number(page);
     const skip = (currentPage - 1) * pageSize;
@@ -94,7 +75,7 @@ const getCollection = async (req, res, next) => {
     for (let item of data) {
       const itemObj = item.toObject();
       // Reference.countDocuments 컬렉션 참조하도록 수정 필요
-      const refCount = await Collection.countDocuments({
+      const refCount = await Reference.countDocuments({
         collectionId: itemObj._id,
       });
       itemObj.refCount = refCount;
@@ -122,29 +103,30 @@ const getCollection = async (req, res, next) => {
 };
 
 const updateCollection = async (req, res, next) => {
-  const { collectionId } = req.params;
-  const { title } = req.body;
   try {
+    const { collectionId } = req.params;
+    const { title } = req.body;
     const coll = await Collection.findOneAndUpdate(
       { _id: collectionId },
       { $set: { title: title } },
       { new: true, runValidators: true }
     );
+
     res.status(StatusCodes.OK).json(coll);
   } catch (err) {
     if (err instanceof MongoError && err.code === 11000) {
-      return duplicate(err, req, res, next);
-    }
-    if (err instanceof mongoose.Error.ValidationError) {
-      return exceedMaxLength(err, req, res, next);
+      res.status(StatusCodes.BAD_REQUEST).json({
+        error: "중복된 이름입니다.",
+      });
+      return;
     }
     next(err);
   }
 };
 
 const deleteCollection = async (req, res, next) => {
-  const { collectionIds } = req.body;
   try {
+    const { collectionIds } = req.body;
     const coll = await Collection.deleteMany({
       _id: { $in: collectionIds },
     });
@@ -154,16 +136,14 @@ const deleteCollection = async (req, res, next) => {
       !Array.isArray(collectionIds) ||
       collectionIds.length === 0
     ) {
-      res
-        .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "잘못된 요청입니다." });
+      res.status(StatusCodes.BAD_REQUEST).json({ error: "잘못된 요청입니다." });
       return;
     }
 
     if (coll.deletedCount === 0) {
-      res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "삭제할 컬렉션이 없습니다." });
+      res.status(StatusCodes.NOT_FOUND).json({
+        error: "존재하지 않습니다.",
+      });
       return;
     }
 
@@ -176,13 +156,12 @@ const deleteCollection = async (req, res, next) => {
 };
 
 const toggleFavorite = async (req, res, next) => {
-  const { collectionId } = req.params;
   try {
+    const { collectionId } = req.params;
     const coll = await Collection.findById(collectionId);
+
     if (!coll) {
-      res.status(StatusCodes.NOT_FOUND).json({
-        message: "해당 컬렉션을 찾을 수 없습니다.",
-      });
+      res.status(StatusCodes.BAD_REQUEST).json({ error: "잘못된 요청입니다." });
       return;
     }
 
@@ -191,6 +170,7 @@ const toggleFavorite = async (req, res, next) => {
     const message = updatedCollection.isFavorite
       ? "컬렉션 즐겨찾기 등록 성공"
       : "컬렉션 즐겨찾기 해제 성공";
+
     res.status(StatusCodes.OK).json({
       message: message,
       data: `${updatedCollection.isFavorite}`,
