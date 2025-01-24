@@ -5,7 +5,7 @@ const collSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
-      maxLength: [20, "Title is too long."],
+      maxLength: 20,
     },
     isFavorite: { type: Boolean, default: false },
     createdBy: {
