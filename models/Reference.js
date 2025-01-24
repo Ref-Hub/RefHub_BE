@@ -1,11 +1,72 @@
 import mongoose from "mongoose";
+const { Schema } = mongoose;
 
-const referenceSchema = new mongoose.Schema({
-    category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' },
-    title: { type: String, required: true },
-    keywords: [String],
-    memo: String,
-    resources: [{ type: String }],
-  });
-  
-  module.exports = mongoose.model('Reference', referenceSchema);
+// reference 스키마
+const referenceSchema = new Schema({
+  title: {
+    required: true,
+    type: String,
+    maxlength: [20, "최대 글자수를 초과하였습니다."],
+  },
+  createAt: {
+    required: true,
+    type: Date,
+    default: Date.now(),
+  },
+  collectionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  memo: {
+    type: String,
+    maxlength: [500, "최대 글자수를 초과하였습니다."],
+  },
+  files: [
+    {
+      fileType: String,
+      originalName: String,
+      imageList: [String],
+      newName: String,
+      filePath: String,
+    },
+  ],
+});
+// keyword
+const keywordSchema = new Schema({
+  keywordName: {
+    require: true,
+    type: String,
+  },
+});
+// keyword를 갖는 reference
+const refkeySchema = new Schema({
+  referenceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Reference",
+    require: true,
+  },
+  keywordId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Keyword",
+    require: true,
+  },
+});
+const listSchema = new Schema({
+  listUrl: {
+    type: String,
+    require: true,
+  },
+  referenceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Reference",
+    require: true,
+  },
+});
+
+// 모델 정의
+const Reference = mongoose.model("Reference", referenceSchema);
+const Keyword = mongoose.model("Keyword", keywordSchema);
+const Refkey = mongoose.model("Refkey", refkeySchema);
+const List = mongoose.model("List", listSchema);
+
+export { Reference, Keyword, Refkey, List };
