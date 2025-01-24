@@ -1,32 +1,31 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>레퍼브 초대</title>
+  <title>refhub sharing email</title>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 </head>
-<body style="font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-  <div style="padding: 2rem; max-width: 500px; width: 100%;">
-    <div style="display: flex; align-items: center; margin-bottom: 1.5rem;">
-      <img src="https://via.placeholder.com/30" alt="로고" style="width: 30px; height: 30px; margin-right: 10px;">
+
+<body style="font-family: 'Pretendard', sans-serif; height: 100vh; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background-color: #FFFFFF;">
+  <div style="max-width: 600px; width: 100%; padding: 40px; background: #FFFFFF; border: 1px solid #F9FAF9; text-align: left; letter-spacing: -1px;">
+    <div style="margin-bottom: 5px;">
+      <img src="cid:logo" alt="RefHub 로고" style="height: 20px;">
     </div>
-    <h2 style="color: #282828; font-size: 1.8rem; margin-bottom: 1rem;">
+    <h1 style="font-size: 1.6rem; color: #282828; margin: 0; margin-bottom: 20px; letter-spacing: -1px;">
       레퍼브 <span style="color: #1ABC9C;"><%= collection %></span> 컬렉션에 함께 하세요!
-    </h2>
-    <div style="width: 60px; border-top: 3px solid #FFD700; margin: 0 0 1.5rem 0;"></div>
-    <p style="color: #676967; font-size: 1rem; line-height: 1.5; margin-bottom: 1.5rem; text-align: left;">
-      <b><%= owner %></b>님이 <b><%= name %></b>님을 <b><%= collection %></b> 컬렉션에 초대했습니다.<br>
-      <b><%= collection %></b> 컬렉션에서 레퍼런스를 같이 공유해보세요.
-    </p>
-    <p>
-      <a href="<%= link %>" style="color: #ffffff !important; background-color: #1ABC9C; border: none; padding: 0.8rem 2rem; font-size: 1.2rem; font-weight: bold; border-radius: 15px; cursor: pointer; text-decoration: none; display: inline-block; transition: background-color 0.3s ease;">바로 이동하기</a>
-    </p>
-    <div style="color: #999999; font-size: 0.8rem; margin-top: 1rem;">
-      * 계정이 없는 경우, 회원가입 후 컬렉션에 접근이 가능합니다.
+    </h1>
+    <hr style="width: 100px; border: none; border-top: 1.6px solid #FBBC05; margin: 10px 0 20px 0; margin-bottom: 30px;">
+    <div style="font-size: 1rem; color: #282828; line-height: 2; margin-bottom: 20px; letter-spacing: -1px;">
+      <p><strong><%= owner %></strong> 님이 <strong><%= name %></strong> 님을 <strong><%= collection %></strong> 컬렉션에 초대했습니다.<br>
+      <strong><%= collection %></strong> 컬렉션에서 레퍼런스를 같이 공유해보세요.</p>
     </div>
-    <footer style="margin-top: 2rem; font-size: 0.9rem; color: #999999; text-align: left;">
-      📁 RefHub
-    </footer>
+    <p>
+      <a href="<%= link %>" style="color: #ffffff !important; background-color: #1ABC9C; border: none; padding: 0.8rem 2rem; font-size: 1.4rem; font-weight: bold; border-radius: 10px; cursor: pointer; text-decoration: none; display: inline-block; transition: background-color 0.3s ease; color: white; text-align: center; margin-top: 20px; margin-bottom: 10px;">바로 이동하기</a>
+    </p>
+    <p style="font-size: 0.9rem; color: #8A8D8A;">
+      * 계정이 없는 경우, 회원가입 후 컬렉션에 접근이 가능합니다.
+    </p>
   </div>
 </body>
 </html>

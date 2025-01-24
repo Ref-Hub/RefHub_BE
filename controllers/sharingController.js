@@ -25,11 +25,7 @@ const sendEmail = async (
   collectionName,
   link
 ) => {
-  const emailTemplatePath = path.join(
-    appDir,
-    "templates",
-    "inviteEmail.ejs"
-  );
+  const emailTemplatePath = path.join(appDir, "templates", "inviteEmail.ejs");
   const emailTemplate = await ejs.renderFile(emailTemplatePath, {
     owner: ownerName,
     name: invitedName,
@@ -41,6 +37,13 @@ const sendEmail = async (
     to: email,
     subject: `📁RefHub📁 ${ownerName}님이 ${collectionName} 컬렉션에 초대했습니다.`,
     html: emailTemplate,
+    attachments: [
+      {
+        filename: "logo.png",
+        path: path.join(appDir, "src/templates", "logo.png"),
+        cid: "logo",
+      },
+    ],
   };
   try {
     await transporter.sendMail(mailOptions);
