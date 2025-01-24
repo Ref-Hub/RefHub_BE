@@ -1,85 +1,32 @@
 import mongoose from "mongoose";
-const { Schema } = mongoose;
 
-// Collection Schema
-const collectionSchema = new Schema({
-  collectionName: {
-    required: true,
-    type: String,
-  }
-});
-
-// Reference Schema
-const referenceSchema = new Schema({
-  title: {
-    required: true,
-    type: String,
-    maxlength: [20, '최대 글자수를 초과하였습니다.'],
-  },
-  createAt: {
-    required: true,
-    type: Date,
-    default : Date.now(),
-  },
+const referenceSchema = new mongoose.Schema({
   collectionId: {
     type: mongoose.Schema.Types.ObjectId,
+    ref: "Collection",
     required: true,
   },
-  memo: {
-    type: String,
-    maxlength: [500, '최대 글자수를 초과하였습니다.'],
-  },
+  title: { type: String, required: true, maxLength: 20 },
+  keywords: { type: [String], validate: [keywordsValidation, "Invalid keywords"] },
+  memo: { type: String, maxLength: 500 },
   files: [
     {
-      fileType: String,
-      originalName: String,
-      imageList: [String],
-      newName: String,
-      filePath: String,
+      type: {
+        type: String,
+        enum: ["link", "image", "pdf", "file"],
+        required: true,
+      },
+      path: { type: String, required: true },
+      size: { type: Number, required: true },
+      images: { type: [String], default: [] },
     },
   ],
+  createdAt: { type: Date, default: Date.now },
 });
 
-// Keyword Schema
-const keywordSchema = new Schema({
-  keywordName: {
-    required: true,
-    type: String,
-  }
-});
+function keywordsValidation(keywords) {
+  return keywords.every((kw) => kw.length <= 15);
+}
 
-// Refkey Schema for associating Reference and Keyword
-const refkeySchema = new Schema({
-  referenceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Reference',
-    required: true,
-  },
-  keywordId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Keyword',
-    required: true,
-  }
-});
-
-// List Schema for storing URLs
-const listSchema = new Schema({
-  listUrl: {
-    type: String,
-    required: true,
-  },
-  referenceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Reference',
-    required: true,
-  }
-});
-
-// Model Definitions
-const Collection = mongoose.model('Collection', collectionSchema);
-const Reference = mongoose.model('Reference', referenceSchema);
-const Keyword = mongoose.model('Keyword', keywordSchema);
-const Refkey = mongoose.model('Refkey', refkeySchema);
-const List = mongoose.model('List', listSchema);
-
-export { Collection, Reference, Keyword, Refkey, List };
+const Reference = mongoose.model("Reference", referenceSchema, "references");
+export default Reference;
