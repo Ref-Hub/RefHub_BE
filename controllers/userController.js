@@ -32,15 +32,22 @@ const validateConfirmPassword = check('confirmPassword')
 
 // [회원가입]
 // 이메일 인증번호 발송 함수
-const sendVerificationEmail = async (name, email, verificationCode) => {
+const sendVerificationEmail = async (name, email, verificationCode, subject) => {
   const emailTemplatePath = path.join(appDir, 'templates', 'authEmail.ejs');
   const emailTemplate = await ejs.renderFile(emailTemplatePath, { authCode: verificationCode, name });
 
   const mailOptions = {
     from: process.env.USER,
     to: email,
-    subject: '📁[RefHub] 계정 인증📁',
+    subject,
     html: emailTemplate,
+    attachments: [
+      {
+        filename: 'logo.png',
+        path: path.join(appDir, 'templates', 'logo.png'),
+        cid: 'logo'
+      }
+    ]
   };
 
   return smtpTransport.sendMail(mailOptions);
@@ -66,7 +73,7 @@ export const authEmail = [
     const verificationExpires = Date.now() + 10 * 60 * 1000;
 
     try {
-      await sendVerificationEmail(name, email, verificationCode);
+      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
 
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -238,7 +245,7 @@ export const resetPasswordEmail = [
       user.verificationExpires = verificationExpires;
       await user.save();
 
-      await sendVerificationEmail(user.name, email, verificationCode);
+      await sendVerificationEmail(user.name, email, verificationCode, '📁RefHub📁 비밀번호 재설정 인증 번호');
 
       res.status(200).send('비밀번호 재설정을 위한 인증번호가 발송되었습니다.');
     } catch (error) {

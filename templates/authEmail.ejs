@@ -3,56 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verification Code</title>
+  <title>refhub verificationCode email</title>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      background-color: #f4f4f4;
+      font-family: 'Pretendard', sans-serif;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      background-color: #FFFFFF;
     }
-    .email-container {
-      background: #F9FAF9;
-      border-radius: 20px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      padding: 30px;
-      text-align: center;
-      max-width: 500px;
+    .container {
+      max-width: 600px;
       width: 100%;
+      padding: 40px;
+      background: #FFFFFF;
+      border: 1px solid #F9FAF9;
+      text-align: left;
+      letter-spacing: -1px;
     }
-    h2 {
-      color: #282828;
+    .logo {
+      margin-bottom: 5px;
+    }
+    .logo img {
+      height: 20px;
+    }
+    h1 {
       font-size: 1.6rem;
-      margin-bottom: 10px;
-    }
-    p {
-      color: #676967;
-      font-size: 1rem;
+      color: #282828;
+      margin: 0;
       margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+    hr {
+      width: 100px;
+      border: none;
+      border-top: 1.6px solid #FBBC05;
+      margin: 10px 0 20px 0;
+      margin-bottom: 30px;
+    }
+    .content {
+      font-size: 1rem;
+      color: #282828;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
     }
     .verification-code {
-      color: #1ABC9C;
+      display: block;
+      background-color: #1ABC9C;
+      color: white;
+      font-size: 1.4rem;
       font-weight: bold;
-      font-size: 1.5rem;
-      margin: 10px 0;
+      width: 200px;
+      height: 60px;
+      line-height: 60px;
+      border-radius: 10px;
+      letter-spacing: 10px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      text-align: center;
     }
-    footer {
-      margin-top: 30px;
+    .note {
       font-size: 0.9rem;
-      color: #676967;
+      color: #8A8D8A;
     }
   </style>
 </head>
 <body>
-  <div class="email-container">
-    <h2><%= name %>님, 안녕하세요!😊</h2>
-    <p>RefHub 계정 본인 확인을 위한 메일입니다.<br>
-      하단의 번호를 입력하여 인증을 완료해주세요!<br>
-      (⚠️인증번호는 10분 후에 만료됩니다.⚠️)</p>
-    <p class="verification-code"><%= authCode %></p>
-    <footer>📁RefHub</footer>
+  <div class="container">
+    <div class="logo">
+      <img src="cid:logo" alt="RefHub 로고">
+    </div>
+    <h1>레퍼브 회원가입 인증 번호</h1>
+    <hr>
+    <div class="content">
+      <p><strong><%= name %></strong> 님,<br>
+        레퍼브 회원가입을 위한 인증 번호를 보내드립니다.<br>
+        레퍼브에서 아래의 인증 번호를 입력해주세요.</p>
+    </div>
+    <div class="verification-code"><%= authCode %></div>
+    <p class="note">*인증 번호는 10분 동안 유효합니다.</p>
   </div>
 </body>
 </html>
