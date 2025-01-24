@@ -1,25 +1,14 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
-import * as dotenv from 'dotenv';
 import referenceRoutes from './routes/referenceRoutes.js';
-import collectionRoutes from './routes/collectionRoutes.js';
+import connectDB from './db.js';
 
-dotenv.config();
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.DATABASE_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  }).then(() => {
-    console.log("MongoDB 연결 성공!");
-  }).catch((err) => {
-    console.error("MongoDB 연결 실패:", err.message);
-  });
-
+connectDB();
 
 //미들웨어 설정
 app.use(express.json());
