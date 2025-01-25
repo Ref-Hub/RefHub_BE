@@ -1,6 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import Collection from "../models/Collection.js";
-import { Reference } from "../models/Reference.js";
+import Reference from "../models/Reference.js";
 import { MongoError } from "mongodb";
 
 const createCollection = async (req, res, next) => {
