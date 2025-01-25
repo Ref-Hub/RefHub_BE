@@ -1,0 +1,77 @@
+GET http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+PATCH http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+
+{
+  "email": "yyj9694651@naver.com"
+}
+###
+PATCH http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+
+{
+  "email": "yyj9694651@sookmyung.ac.kr",
+  "role": "vi"
+}
+###
+PATCH http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+
+{
+  "email": "yyj9694651@sookmyung.ac.kr",
+  "role": "editor"
+}
+###
+GET http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+PATCH http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/set-private
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+
+{
+
+}
+###
+GET http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+PATCH http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+
+{
+  "email": "yyj9694651@sookmyung.ac.kr",
+  "role": "viewer"
+}
+###
+GET http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+PATCH http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+
+{
+  "email": "yyj9694651@dkanrjsk.com",
+  "role": "editor"
+}
+###
+GET http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+DELETE  http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users/6793b42e13a8804c7724225c
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+GET http://localhost:3000/collections/6793b34e13a8804c7724220e/sharing/shared-users
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc3MzI2NzMsImV4cCI6MTczNzczNjI3M30.u3w64A1NASEfa-5xqPUJDJkfZ7H1YBigNBOwuuhY7uQ
+###
+
+
+
