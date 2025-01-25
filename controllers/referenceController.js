@@ -1,126 +1,463 @@
-import { Collection, Reference, Keyword, Refkey, List } from '../models/Reference.js';
-import path from 'path';
-import fs from 'fs';
+import Reference from "../models/reference.js";
+import Collection from "../models/collection.js";
+import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
+import mongoose from "mongoose";
 
-// 레퍼런스 추가
-export const createReference = async (req, res) => {
-    try {
-        const { collectionName, title, keywords, memo, files } = req.body;
 
-        // 400 형식 오류 
-        if (!collectionName){
-            return res.status(400).json({ message: "컬렉션을 선택해 주세요."})
-        } else if (!title){
-            return res.status(400).json({ message: "제목을 입력해 주세요."})
-        } else if (!files){
-            return res.status(400).json({ message: "첨부파일이 존재하지 않습니다."})
+//레퍼런스 추가
+export const addReference = async (req, res) => {
+  try {
+    const { collectionTitle, title, keywords, memo, links } = req.body;
+
+    // Collection 확인
+    const collection = await Collection.findOne({ title: collectionTitle });
+    if (!collection) {
+      return res.status(404).json({ error: "해당 콜렉션이 존재하지 않습니다." });
+    }
+
+    const files = [];
+    let totalAttachments = 0; // 총 첨부 자료 개수
+
+    // 링크 처리
+    if (links) {
+      const linkArray = Array.isArray(links) ? links : [links]; // 단일 문자열일 경우 배열로 변환
+      for (const link of linkArray) {
+        if (!link.startsWith("http://") && !link.startsWith("https://")) {
+          return res.status(400).json({ error: "링크는 http:// 또는 https://로 시작해야 합니다." });
         }
-        
-        // 레퍼런스 저장 
-        const collection = await Collection.findOne({ collectionName });
-        if(!collection){
-          return res.status(400).json({ message: `${collectionName} 이름을 갖는 컬렉션이 존재하지 않습니다.`});
+
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
-        const collectionId = collection._id;
-
-        const newReference = new Reference({
-          title,
-          collectionId,
-          memo,
+        files.push({
+          type: "link",
+          path: link,
+          size: 0, // 링크는 크기가 없으므로 0
         });
-
-        const saveReference = await newReference.save();
-
-        // 첨부파일 저장 
-        let fileArray = [];
-        let imageFile_nember = 0;
-        const defaultImageFolder = `upload/images/${collectionName}_${title}`;
-        const defaultImageNewName = `${collectionName}_${title}`;
-        for (const file of files){
-          let { fileType } = file;
-          // link는 lists에 저장
-          if (fileType == "link"){
-            if (file.originalName.startsWith('http://') || file.originalName.startsWith('https://')){
-              const newList = new List({
-                listUrl: file.originalName,
-                referenceId: saveReference._id,
-              });
-              const saveList = await newList.save();
-            }
-            else {
-              return res.status(400).json({ message: "http:// 또는 https://로 시작하는 링크를 입력해 주세요."})
-            }
-          } else if (fileType == "image"){ // images
-            // collectionName_title 폴더를 upload/images 안에 생성 
-            let imageFolder = defaultImageFolder;
-            let imageNewName = defaultImageNewName;
-            if(!fs.existsSync(imageFolder)) {}
-            else { // 사진 묶음이 2개 이상이라, collection_title 폴더가 이미 존재하는 경우 
-              imageFile_nember++;
-              imageNewName = defaultImageNewName + imageFile_nember.toString();
-              imageFolder = `${defaultImageFolder}_${imageFile_nember}`;
-            }
-            file.newName = imageNewName;
-            file.filePath = imageFolder;
-            fileArray.push(file);
-
-            // 폴더 생성 
-            fs.mkdir(imageFolder, { recursive: true }, (err) => {
-              if (err){ console.log("컨트롤러 이미지 저장에서 에러 발생")}
-            });
-
-            file.imageList.forEach(( imegefile, index) => {
-              let newName = `${Date.now()}_${collectionName}_${title}_${imegefile}`;
-              let imageFilePath = path.join(imageFolder, newName );
-              fs.writeFileSync(imageFilePath, "");
-              // 생성된 폴더 안에 image 저장, image 이름 : Date.Now()_collectionName_title_원본이름
-            })
-
-          } else { // pdf, file
-            let folder = "upload/";
-            if (fileType == "pdf") folder = "upload/pdfs/";
-            if (fileType == "file") folder = "upload/files/";
-            // upload/pdfs 또는 upload/files 안에 file 저장, 이름 : Date.Now()_원본이름
-            let newName = `${Date.now()}_${file.originalName}`;
-            const filePath = path.join(folder, newName);
-            fs.writeFileSync(filePath, "");
-            file.newName = newName;
-            file.filePath = filePath;
-            fileArray.push(file);
-          }
-        }
-
-        newReference.files = fileArray; 
-        const updatedReference = await newReference.save();
-
-        // 키워드 저장 
-        let words = keywords.split(' ');
-        if (words.length > 10){
-          words.length = 10;
-        } // 키워드 최대 10개 
-        for ( let keywordName of words) {
-          if (keywordName.length > 15) {
-            keywordName = keywordName.slice(0, 15);
-          } // 키워드 최대 15글자
-          try {
-            const keyword = await Keyword.findOne({ keywordName });
-            if(!keyword){
-              const newKeyword = new Keyword({ keywordName });
-              const saveKeyword = await newKeyword.save();
-              const newRefkey = new Refkey({ referenceId: saveReference._id, keywordId: saveKeyword._id });
-              await newRefkey.save();
-            } else {
-              const newRefkey = new Refkey({ referenceId: saveReference._id, keywordId: keyword._id });
-              await newRefkey.save();
-            }
-          } catch (error) {
-            console.log('keyword err');
-          }
-        }
- 
-        res.status(201).json({ message: '레퍼런스 추가 성공', reference: newReference });
-      } catch (error) {
-        res.status(500).json({ message: '레퍼런스 추가 오류',  error: error.message });
+        totalAttachments++;
       }
+    }
+
+    // 이미지 리스트 처리
+    if (req.files.images) {
+      if (req.files.images.length > 5) {
+        return res.status(400).json({ error: "이미지 리스트는 최대 5개까지 가능합니다." });
+      }
+
+      const imagePaths = [];
+      for (const image of req.files.images) {
+        const uploadedImage = await uploadFileToGridFS(image, "uploads");
+        imagePaths.push(uploadedImage.id.toString());
+      }
+
+      files.push({
+        type: "image",
+        path: imagePaths.join(", "),
+        size: req.files.images.reduce((acc, img) => acc + img.size, 0),
+        images: imagePaths,
+      });
+      totalAttachments++;
+    }
+
+    // PDF 처리
+    if (req.files.files) {
+      for (const file of req.files.files) {
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+        }
+
+        const fileExtension = file.originalname.split(".").pop().toLowerCase();
+        if (fileExtension !== "pdf") {
+          return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다." });
+        }
+
+        const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        files.push({
+          type: "pdf",
+          path: uploadedFile.id.toString(),
+          size: file.size,
+        });
+        totalAttachments++;
+      }
+    }
+
+    // 기타 파일 처리
+    if (req.files.otherFiles) {
+      for (const file of req.files.otherFiles) {
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+        }
+
+        const fileExtension = file.originalname.split(".").pop().toLowerCase();
+        const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
+        if (allowedExtensions.includes(fileExtension)) {
+          return res
+            .status(400)
+            .json({ error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다." });
+        }
+
+        const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        files.push({
+          type: "file",
+          path: uploadedFile.id.toString(),
+          size: file.size,
+        });
+        totalAttachments++;
+      }
+    }
+
+    // Reference 생성
+    const reference = new Reference({
+      collectionId: collection._id,
+      title,
+      keywords: keywords ? keywords.split(" ").filter((kw) => kw.length <= 15) : [],
+      memo,
+      files, // 파일, 링크, 이미지 정보 포함
+    });
+
+    await reference.save();
+
+    res.status(201).json({ message: "레퍼런스가 등록되었습니다.", reference });
+  } catch (err) {
+    console.error("Error during reference creation:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+// 레퍼런스 수정
+export const updateReference = async (req, res) => {
+  try {
+    const { referenceId } = req.params;
+    const { title, keywords, memo, links } = req.body;
+
+    // 기존 레퍼런스 가져오기
+    const reference = await Reference.findById(referenceId);
+    if (!reference) {
+      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    }
+
+    const db = mongoose.connection.db; // MongoDB 연결 객체
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
+
+    // 기존 첨부 자료 삭제
+    for (const file of reference.files) {
+      if (file.type === "file" || file.type === "pdf" || file.type === "image") {
+        try {
+          const objectId = new mongoose.Types.ObjectId(file.path);
+          await bucket.delete(objectId); // GridFS에서 파일 삭제
+          console.log(`기존 파일 삭제 완료: ${file.path}`);
+        } catch (err) {
+          console.error(`파일 삭제 실패: ${file.path}`, err.message);
+        }
+      }
+    }
+
+    // 기존 첨부 자료 초기화
+    const files = [];
+    let totalAttachments = 0;
+
+    // 링크 처리
+    if (links) {
+      const linkArray = Array.isArray(links) ? links : [links];
+      for (const link of linkArray) {
+        if (!link.startsWith("http://") && !link.startsWith("https://")) {
+          return res.status(400).json({ error: "링크는 http:// 또는 https://로 시작해야 합니다." });
+        }
+
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+        }
+
+        files.push({
+          type: "link",
+          path: link,
+          size: 0,
+        });
+        totalAttachments++;
+      }
+    }
+
+    // 이미지 리스트 처리
+    if (req.files.images) {
+      if (req.files.images.length > 5) {
+        return res.status(400).json({ error: "이미지 리스트는 최대 5개까지 가능합니다." });
+      }
+
+      const imagePaths = [];
+      for (const image of req.files.images) {
+        const uploadedImage = await uploadFileToGridFS(image, "uploads");
+        imagePaths.push(uploadedImage.id.toString());
+      }
+
+      files.push({
+        type: "image",
+        path: imagePaths.join(", "),
+        size: req.files.images.reduce((acc, img) => acc + img.size, 0),
+        images: imagePaths,
+      });
+      totalAttachments++;
+    }
+
+    // PDF 처리
+    if (req.files.files) {
+      for (const file of req.files.files) {
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+        }
+
+        const fileExtension = file.originalname.split(".").pop().toLowerCase();
+        if (fileExtension !== "pdf") {
+          return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다." });
+        }
+
+        const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        files.push({
+          type: "pdf",
+          path: uploadedFile.id.toString(),
+          size: file.size,
+        });
+        totalAttachments++;
+      }
+    }
+
+    // 기타 파일 처리
+    if (req.files.otherFiles) {
+      for (const file of req.files.otherFiles) {
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+        }
+
+        const fileExtension = file.originalname.split(".").pop().toLowerCase();
+        const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
+        if (allowedExtensions.includes(fileExtension)) {
+          return res
+            .status(400)
+            .json({ error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다." });
+        }
+
+        const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        files.push({
+          type: "file",
+          path: uploadedFile.id.toString(),
+          size: file.size,
+        });
+        totalAttachments++;
+      }
+    }
+
+    // 레퍼런스 데이터 업데이트
+    reference.title = title || reference.title;
+    reference.keywords = keywords ? keywords.split(" ").filter((kw) => kw.length <= 15) : reference.keywords;
+    reference.memo = memo || reference.memo;
+    reference.files = files;
+
+    await reference.save();
+
+    res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference });
+  } catch (err) {
+    console.error("Error during reference update:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+// 레퍼런스 상세 기능
+export const getReferenceDetail = async (req, res) => {
+  try {
+    const { referenceId } = req.params;
+
+    // 레퍼런스 찾기
+    const reference = await Reference.findById(referenceId).populate("collectionId", "title");
+    if (!reference) {
+      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    }
+
+    // 응답 데이터 구성
+    const referenceDetail = {
+      collectionTitle: reference.collectionId.title, // 컬렉션 이름
+      referenceTitle: reference.title, // 레퍼런스 이름
+      keywords: reference.keywords, // 키워드
+      memo: reference.memo, // 메모
+      attachments: reference.files.map((file) => ({
+        type: file.type,
+        path: file.path,
+        size: file.size,
+        images: file.images || null, // 이미지일 경우 이미지 리스트 포함
+      })),
+    };
+
+    res.status(200).json({ message: "레퍼런스 상세 정보", referenceDetail });
+  } catch (err) {
+    console.error("Error fetching reference detail:", err.message);
+    res.status(500).json({ error: "레퍼런스 상세 정보를 가져오는 중 오류가 발생했습니다." });
+  }
+};
+
+
+
+// 레퍼런스 삭제 기능
+export const deleteReference = async (req, res) => {
+  try {
+    const { referenceId } = req.params;
+
+    // 레퍼런스 찾기
+    const reference = await Reference.findById(referenceId);
+    if (!reference) {
+      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    }
+
+    const db = mongoose.connection.db; // MongoDB 연결 객체
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
+
+    // 첨부 자료 삭제
+    for (const file of reference.files) {
+      if (file.type === "file" || file.type === "pdf" || file.type === "image") {
+        try {
+          const objectId = new mongoose.Types.ObjectId(file.path);
+          await bucket.delete(objectId); // GridFS에서 파일 삭제
+          console.log(`기존 파일 삭제 완료: ${file.path}`);
+        } catch (err) {
+          console.error(`파일 삭제 실패: ${file.path}`, err.message);
+        }
+      }
+    }
+
+    // 레퍼런스 삭제
+    await Reference.findByIdAndDelete(referenceId);
+
+    res.status(200).json({ message: "레퍼런스가 성공적으로 삭제되었습니다." });
+  } catch (err) {
+    console.error("Error deleting reference:", err.message);
+    res.status(500).json({ error: "레퍼런스를 삭제하는 중 오류가 발생했습니다." });
+  }
+};
+
+
+// 레퍼런스 홈 
+export const getReference = async (req, res) => {
+  const { sortBy = 'latest', page = 1, limit = 10, collection = 'all', filterBy = 'all', search = "", view = 'card' } = req.query;
+  const collectionArray = Array.isArray(collection) ? collection : [collection];
+  let sharedList=[];
+  let referenceArray = [];
+  let collectionSearch;
+  let collectionSearchArray = [];
+  try {
+    // 전체 레퍼런스 조회 (collection 선택 x)
+    if (collectionArray[0] == 'all'){
+      collectionSearch = {};
+      // 레퍼런스가 존재하지 않는 경우
+      referenceArray = await Reference.find({});
+      if(referenceArray.length==0){
+        res.status(201).json({ message: "아직 추가한 레퍼런스가 없어요.\n레퍼런스를 추가해보세요!"});
+      }
+    }
+    // 특정 collection 조회 (collection 선택 o)
+    else {
+      for( const col of collectionArray ){
+        const col = (await Collection.findOne({ title : `${col}`}));
+        const colId = col._id;
+        if (col.sharedWith == []){
+          sharedList.push(colId);
+        }
+        collectionSearchArray.push({ collectionId: `${colId}` });
+      }
+      collectionSearch = { collectionId: { $in: collectionSearchArray.map((obj) => obj.collectionId) } };
+
+    }
+
+    let sort;
+    switch (sortBy) {
+      case 'latest':
+        sort = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sort = { createdAt: 1 };
+        break;
+      case 'sortAsc':
+        sort = { title: 1 };
+        break;
+      case 'sortDesc':
+        sort = { title: -1} ;
+        break;
+      default:
+        sort = { createdAt: -1 }; 
+        break;
+    }
+
+    let filterSearch;
+    // 검색 기능 
+    switch (filterBy) {
+      case 'title':
+        filterSearch = { title: { $regex: `${search}`, $options: 'i' } };
+        break;
+      case 'keyword':
+        filterSearch = { keywords: { $regex: `${search}`, $options: 'i'}};
+        break;
+      case "all":
+        filterSearch = {
+          $or: [
+            { title: { $regex: `${search}`, $options: 'i' } },
+            { keywords: { $regex: `${search}`, $options: 'i' } },
+          ],
+        };
+        break;
+      default:
+        filterSearch = {};
+    }
+
+
+    const totalItemCount = await Reference.countDocuments({
+      ...collectionSearch,
+      ...filterSearch,
+    });
+    if (totalItemCount == 0) {
+      res.status(201).json({ message: "검색 결과가 없어요.\n다른 검색어로 시도해 보세요!"})
+    } else {
+      const totalPages = Math.ceil(totalItemCount/limit);
+      const currentPage = Number(page) > totalPages ? totalPages : Number(page);
+      const skip = (currentPage - 1) * limit;
+
+      const data = await Reference.find({
+        ...collectionSearch,
+        ...filterSearch,
+      })
+        .skip(skip)
+        .limit(limit)
+        .sort(sort);
+  
+        let finalData;
+        switch (view) {
+          case 'card':
+            finalData = data.map((item, index) => ({
+              ...item.toObject(), 
+              sharing: sharedList.includes(item.collectionId)
+            }));
+            break;
+          case 'list':
+            finalData = data.map((item, index) => ({
+              ...item.toObject(), 
+              number: skip + index + 1
+            }));
+            break;
+          default:
+            finalData = data.map((item, index) => ({
+              ...item.toObject(), 
+              sharing: sharedList.includes(item.collectionId)
+            }));
+            break;
+        }
+
+        res.status(201).json({
+          currentPage: currentPage,
+          totalPages: totalPages,
+          totalItemCount: totalItemCount,
+          data: finalData
+        });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "레퍼런스 조회 오류", error: error.message });
+}
 }

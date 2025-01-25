@@ -1,10 +1,9 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import referenceRoutes from './routes/referenceRoutes.js';
 import connectDB from './db.js';
-import multer from 'multer';
+import collectionRoutes from './routes/collectionRoutes.js'
 
 dotenv.config();
 const app = express();
@@ -16,6 +15,7 @@ app.use(express.json());
 connectDB();
 
 //라우터 설정 (레퍼런스만 추가되어있음)
-app.use('/api/references', referenceRoutes);
+app.use('/api', referenceRoutes);
+app.use('/api', collectionRoutes);
 
 app.listen(process.env.PORT || 3000, () => console.log('Server Started'));
