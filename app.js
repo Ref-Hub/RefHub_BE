@@ -35,7 +35,7 @@ if (!token) {
 const errorHandler = (err, req, res, next) => {
   console.error("Error: ", err);
   res
-    .status(StatusCodes.INTERNAL_SERVER_ERROR)
+    .status(500)
     .json({ error: "서버 오류가 발생했습니다." });
 };
 
