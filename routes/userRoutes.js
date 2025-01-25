@@ -18,7 +18,4 @@ router.post('/token', userController.refreshAccessToken);
 router.post('/password/email', userController.resetPasswordEmail);
 router.post('/password/reset', userController.resetPassword);
 
-// 유저 정보 조회 라우터 (임시)
-router.get('/:email', userController.getUser);
-
 export default router;

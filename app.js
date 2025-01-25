@@ -1,20 +1,24 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
-import * as dotenv from 'dotenv';
+import connectDB from './db.js';
 
-//import referenceRoutes from './routes/referenceRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import collectionRoutes from './routes/collectionRoutes.js';
+import referenceRoutes from './routes/referenceRoutes.js';
 
-dotenv.config();
 const app = express();
 
+// 미들웨어 설정
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-mongoose.connect(process.env.DATABASE_URL).then(() => console.log('Connected to DB'));
+// DB 연결
+connectDB();
 
-//app.use('/', referenceRoutes);
+// 라우트 설정
 app.use('/api/users', userRoutes);
+app.use('/api/collections', collectionRoutes);
+app.use('/api', referenceRoutes);
 
 app.listen(process.env.PORT || 3000, () => console.log('Server Started'));

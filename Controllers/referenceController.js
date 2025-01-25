@@ -1,4 +1,4 @@
-import Reference from "../models/Reference.js";
+import Reference from "../models/reference.js";
 import Collection from "../models/Collection.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import mongoose from "mongoose";
