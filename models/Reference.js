@@ -1,72 +1,32 @@
 import mongoose from "mongoose";
-const { Schema } = mongoose;
 
-// reference 스키마
-const referenceSchema = new Schema({
-  title: {
-    required: true,
-    type: String,
-    maxlength: [20, "최대 글자수를 초과하였습니다."],
-  },
-  createAt: {
-    required: true,
-    type: Date,
-    default: Date.now(),
-  },
+const referenceSchema = new mongoose.Schema({
   collectionId: {
     type: mongoose.Schema.Types.ObjectId,
+    ref: "Collection",
     required: true,
   },
-  memo: {
-    type: String,
-    maxlength: [500, "최대 글자수를 초과하였습니다."],
-  },
+  title: { type: String, required: true, maxLength: 20 },
+  keywords: { type: [String], validate: [keywordsValidation, "Invalid keywords"] },
+  memo: { type: String, maxLength: 500 },
   files: [
     {
-      fileType: String,
-      originalName: String,
-      imageList: [String],
-      newName: String,
-      filePath: String,
+      type: {
+        type: String,
+        enum: ["link", "image", "pdf", "file"],
+        required: true,
+      },
+      path: { type: String, required: true },
+      size: { type: Number, required: true },
+      images: { type: [String], default: [] },
     },
   ],
-});
-// keyword
-const keywordSchema = new Schema({
-  keywordName: {
-    require: true,
-    type: String,
-  },
-});
-// keyword를 갖는 reference
-const refkeySchema = new Schema({
-  referenceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Reference",
-    require: true,
-  },
-  keywordId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Keyword",
-    require: true,
-  },
-});
-const listSchema = new Schema({
-  listUrl: {
-    type: String,
-    require: true,
-  },
-  referenceId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Reference",
-    require: true,
-  },
+  createdAt: { type: Date, default: Date.now },
 });
 
-// 모델 정의
-const Reference = mongoose.model("Reference", referenceSchema);
-const Keyword = mongoose.model("Keyword", keywordSchema);
-const Refkey = mongoose.model("Refkey", refkeySchema);
-const List = mongoose.model("List", listSchema);
+function keywordsValidation(keywords) {
+  return keywords.every((kw) => kw.length <= 15);
+}
 
-export { Reference, Keyword, Refkey, List };
+const Reference = mongoose.model("Reference", referenceSchema, "references");
+export default Reference;

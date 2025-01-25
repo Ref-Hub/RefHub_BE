@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -15,9 +15,9 @@ const userSchema = new mongoose.Schema({
   },
   verificationCode: {
     type: Number,
-    max: 999999,
-  },
+    max: 999999
+  }
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema);
 export default User;
