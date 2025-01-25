@@ -110,7 +110,7 @@ export const createUser = [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, verificationCode, password } = req.body;
+    const { email, verificationCode, password, confirmPassword } = req.body;
 
     if (!email || !verificationCode || !password || !confirmPassword) {
       return res.status(400).send('모든 정보를 입력해주세요.');
@@ -298,24 +298,3 @@ export const resetPassword = [
     }
   },
 ];
-
-// 유저 정보 조회 함수 (임시)
-export const getUser = async (req, res) => {
-  const { email } = req.params;
-
-  if (!email) {
-    return res.status(400).send('이메일 입력 X');
-  }
-
-  try {
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(404).send('유저 X');
-    }
-
-    res.status(200).json(user);
-  } catch (error) {
-    res.status(500).send('서버 에러');
-  }
-};

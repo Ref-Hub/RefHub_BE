@@ -5,7 +5,7 @@ const collSchema = new mongoose.Schema(
     title: {
       type: String,
       required: true,
-      maxLength: [20, "Title is too long."],
+      maxLength: 20,
     },
     isFavorite: { type: Boolean, default: false },
     createdBy: {
@@ -28,7 +28,7 @@ const collSchema = new mongoose.Schema(
           },
         },
       ],
-      default: [],
+      default: [], // 기본적으로 빈 배열
     },
     createdAt: { type: Date, default: () => Date.now() },
   },
