@@ -28,26 +28,18 @@ const getCollection = async (req, res, next) => {
   try {
     const { page = 1, sortBy = "latest", search = "" } = req.query;
     const pageSize = 15;
+    const parsedPage = parseInt(page, 10);
+    
+    const validPage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const createdBy = req.user.id;
 
-    let sort = {};
-    switch (sortBy) {
-      case "latest":
-        sort = { isFavorite: -1, createdAt: -1 };
-        break;
-      case "oldest":
-        sort = { isFavorite: -1, createdAt: 1 };
-        break;
-      case "sortAsc":
-        sort = { isFavorite: -1, title: 1 };
-        break;
-      case "sortDesc":
-        sort = { isFavorite: -1, title: -1 };
-        break;
-      default:
-        sort = { isFavorite: -1, createdAt: -1 };
-        break;
-    }
+    const sortOptions = {
+      latest: { isFavorite: -1, createdAt: -1 },
+      oldest: { isFavorite: -1, createdAt: 1 },
+      sortAsc: { isFavorite: -1, title: 1 },
+      sortDesc: { isFavorite: -1, title: -1 },
+    };
+    const sort = sortOptions[sortBy] || sortOptions.latest;
 
     const searchCondition = search
       ? { title: { $regex: search, $options: "i" } }
@@ -58,44 +50,55 @@ const getCollection = async (req, res, next) => {
       $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
     });
 
+    if (totalItemCount === 0) {
+      if (search === "") {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          message:
+            "아직 생성된 컬렉션이 없어요.\n새 컬렉션을 만들어 정리를 시작해보세요!",
+        });
+      } else {
+        return res.status(StatusCodes.NOT_FOUND).json({
+          message: "검색 결과가 없어요.\n다른 검색어로 시도해보세요!",
+        });
+      }
+    }
+
     const totalPages = Math.ceil(totalItemCount / pageSize);
-    const currentPage = Number(page) > totalPages ? totalPages : Number(page);
+    const currentPage = Math.min(validPage, totalPages);
     const skip = (currentPage - 1) * pageSize;
-    const limit = pageSize;
 
     const data = await Collection.find({
       ...searchCondition,
       $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
     })
       .skip(skip)
-      .limit(limit)
+      .limit(pageSize)
       .sort(sort);
 
-    const modifiedData = [];
-    for (let item of data) {
-      const itemObj = item.toObject();
-      // Reference.countDocuments 컬렉션 참조하도록 수정 필요
-      const refCount = await Reference.countDocuments({
-        collectionId: itemObj._id,
-      });
-      itemObj.refCount = refCount;
-      modifiedData.push(itemObj);
-    }
+    const modifiedData = await Promise.all(
+      data.map(async (item) => {
+        const refCount = await Reference.countDocuments({
+          collectionId: item._id,
+        });
+        item.refCount = refCount; // 바로 item에 refCount 추가
+        return {
+          _id: item._id,
+          title: item.title,
+          isFavorite: item.isFavorite,
+          createdBy: item.createdBy,
+          sharedWith: item.sharedWith,
+          createdAt: item.createdAt,
+          refCount: item.refCount,
+          // image: item.image, // 필요 시 추가
+        };
+      })
+    );
 
     res.status(StatusCodes.OK).json({
-      currentPage: currentPage,
-      totalPages: totalPages,
-      totalItemCount: totalItemCount,
-      data: modifiedData.map((item) => ({
-        _id: item._id,
-        title: item.title,
-        isFavorite: item.isFavorite,
-        createdBy: item.createdBy,
-        sharedWith: item.sharedWith,
-        createdAt: item.createdAt,
-        refCount: item.refCount,
-        // image: item.image, // 필요 시 추가
-      })),
+      currentPage,
+      totalPages,
+      totalItemCount,
+      data: modifiedData,
     });
   } catch (err) {
     next(err);
@@ -136,7 +139,9 @@ const deleteCollection = async (req, res, next) => {
       !Array.isArray(collectionIds) ||
       collectionIds.length === 0
     ) {
-      res.status(StatusCodes.BAD_REQUEST).json({ error: "잘못된 요청입니다." });
+      res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ error: "선택한 컬렉션이 없습니다." });
       return;
     }
 
@@ -147,9 +152,7 @@ const deleteCollection = async (req, res, next) => {
       return;
     }
 
-    res
-      .status(StatusCodes.OK)
-      .json({ message: `${coll.deletedCount}개의 컬렉션이 삭제되었습니다.` });
+    res.status(StatusCodes.OK).json({ message: "삭제가 완료되었습니다." });
   } catch (err) {
     next(err);
   }
@@ -161,7 +164,7 @@ const toggleFavorite = async (req, res, next) => {
     const coll = await Collection.findById(collectionId);
 
     if (!coll) {
-      res.status(StatusCodes.BAD_REQUEST).json({ error: "잘못된 요청입니다." });
+      res.status(StatusCodes.NOT_FOUND).json({ error: "존재하지 않습니다." });
       return;
     }
 
