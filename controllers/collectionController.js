@@ -3,6 +3,7 @@ import Collection from "../models/Collection.js";
 import Reference from "../models/Reference.js";
 import { MongoError } from "mongodb";
 
+// 컬렉션 생성
 const createCollection = async (req, res, next) => {
   try {
     const { title } = req.body;
@@ -24,15 +25,18 @@ const createCollection = async (req, res, next) => {
   }
 };
 
+// 컬렉션 목록 조회
 const getCollection = async (req, res, next) => {
   try {
     const { page = 1, sortBy = "latest", search = "" } = req.query;
     const pageSize = 15;
-    const parsedPage = parseInt(page, 10);
-    
-    const validPage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const createdBy = req.user.id;
 
+    // 페이지 유효성 검사
+    const parsedPage = parseInt(page, 10);
+    const validPage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+
+    // 조건 필터링
     const sortOptions = {
       latest: { isFavorite: -1, createdAt: -1 },
       oldest: { isFavorite: -1, createdAt: 1 },
@@ -45,6 +49,7 @@ const getCollection = async (req, res, next) => {
       ? { title: { $regex: search, $options: "i" } }
       : {};
 
+    // 컬렉션 전체 개수 및 오류 
     const totalItemCount = await Collection.countDocuments({
       ...searchCondition,
       $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
@@ -52,13 +57,13 @@ const getCollection = async (req, res, next) => {
 
     if (totalItemCount === 0) {
       if (search === "") {
-        return res.status(StatusCodes.NOT_FOUND).json({
+        return res.status(StatusCodes.OK).json({
           message:
-            "아직 생성된 컬렉션이 없어요.\n새 컬렉션을 만들어 정리를 시작해보세요!",
+            "아직 생성된 컬렉션이 없어요. 새 컬렉션을 만들어 정리를 시작해보세요!",
         });
       } else {
-        return res.status(StatusCodes.NOT_FOUND).json({
-          message: "검색 결과가 없어요.\n다른 검색어로 시도해보세요!",
+        return res.status(StatusCodes.OK).json({
+          message: "검색 결과가 없어요. 다른 검색어로 시도해보세요!",
         });
       }
     }
@@ -67,6 +72,7 @@ const getCollection = async (req, res, next) => {
     const currentPage = Math.min(validPage, totalPages);
     const skip = (currentPage - 1) * pageSize;
 
+    // 컬렉션 페이지네이션
     const data = await Collection.find({
       ...searchCondition,
       $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
@@ -75,12 +81,13 @@ const getCollection = async (req, res, next) => {
       .limit(pageSize)
       .sort(sort);
 
+    // 반환 데이터 재구성
     const modifiedData = await Promise.all(
       data.map(async (item) => {
         const refCount = await Reference.countDocuments({
           collectionId: item._id,
         });
-        item.refCount = refCount; // 바로 item에 refCount 추가
+        item.refCount = refCount;
         return {
           _id: item._id,
           title: item.title,
@@ -105,6 +112,7 @@ const getCollection = async (req, res, next) => {
   }
 };
 
+// 컬렉션 수정
 const updateCollection = async (req, res, next) => {
   try {
     const { collectionId } = req.params;
@@ -127,6 +135,7 @@ const updateCollection = async (req, res, next) => {
   }
 };
 
+// 컬렉션 삭제 (삭제모드 포함)
 const deleteCollection = async (req, res, next) => {
   try {
     const { collectionIds } = req.body;
@@ -158,6 +167,7 @@ const deleteCollection = async (req, res, next) => {
   }
 };
 
+// 컬렉션 즐겨찾기
 const toggleFavorite = async (req, res, next) => {
   try {
     const { collectionId } = req.params;

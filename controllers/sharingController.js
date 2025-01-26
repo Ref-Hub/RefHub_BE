@@ -7,6 +7,7 @@ import ejs from "ejs";
 
 const appDir = path.resolve();
 
+// 메일 발송에 필요한 변수 정의
 const transporter = createTransport({
   service: "gmail",
   auth: {
@@ -54,6 +55,7 @@ const sendEmail = async (
   }
 };
 
+// 컬렉션 나만 보기
 const setPrivate = async (req, res, next) => {
   try {
     const coll = await Collection.findById(req.params.collectionId);
@@ -73,6 +75,7 @@ const setPrivate = async (req, res, next) => {
   }
 };
 
+// 공유 사용자 조회
 const getSharedUsers = async (req, res, next) => {
   try {
     const coll = await Collection.findById(req.params.collectionId).populate(
@@ -93,6 +96,7 @@ const getSharedUsers = async (req, res, next) => {
   }
 };
 
+// 공유 사용자 추가 및 메일 발송
 const updateSharedUsers = async (req, res, next) => {
   try {
     const { email, role } = req.body;
@@ -105,13 +109,14 @@ const updateSharedUsers = async (req, res, next) => {
       return;
     }
 
+    // 유저가 없으면 새로 추가
     let user = await User.findOne({ email });
-
     if (!user) {
       user = new User({ email, name: "", role: "viewer" });
       await user.save();
     }
 
+    // 본인에게 공유 시 에러
     if (user._id.toString() === coll.createdBy.toString()) {
       res
         .status(StatusCodes.BAD_REQUEST)
@@ -124,11 +129,13 @@ const updateSharedUsers = async (req, res, next) => {
       (sharedUser) => sharedUser.userId.toString() === user._id.toString()
     );
 
+    // 공유 중이라면 수정
     if (existingUser) {
       existingUser.role = role;
       await coll.save();
       res.status(StatusCodes.OK).json({ message: "사용자 수정 성공" });
     } else {
+    // 공유 중이 아니라면 추가
       coll.sharedWith.push({ userId: user?._id, role });
       await coll.save();
 
@@ -143,6 +150,7 @@ const updateSharedUsers = async (req, res, next) => {
       const collectionName = coll.title;
       const link = `https://refub.com/collections/${coll._id}`; // 수정 필요
 
+      // 메일 발송
       try {
         await sendEmail(email, ownerName, invitedName, collectionName, link);
         res
@@ -159,6 +167,7 @@ const updateSharedUsers = async (req, res, next) => {
   }
 };
 
+// 공유 사용자 삭제
 const deleteSharedUser = async (req, res, next) => {
   try {
     const { collectionId, userId } = req.params;
