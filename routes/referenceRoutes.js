@@ -4,6 +4,7 @@ import {
   updateReference,
   getReferenceDetail,
   deleteReference,
+  getReference,
 } from "../Controllers/referenceController.js";
 import { upload } from "../middlewares/fileUpload.js";
 import downloadFile from "../middlewares/fileDownload.js";
@@ -21,6 +22,9 @@ router.get("/reference/:referenceId", getReferenceDetail);
 
 // 레퍼런스 삭제
 router.delete("/reference/:referenceId", deleteReference);
+
+// 레퍼런스 홈
+router.get("/reference", getReference);
 
 // 파일 다운로드
 router.get("/file/:id", downloadFile);
