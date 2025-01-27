@@ -4,31 +4,11 @@ import path from 'path';
 import bcrypt from 'bcrypt';
 import { smtpTransport } from '../config/email.js';
 import jwt from 'jsonwebtoken';
-import { validationResult, check } from 'express-validator';
+import validators from '../middlewares/validators.js';
+
+const { validateName, validateEmail, validatePassword, validateConfirmPassword, validateMiddleware } = validators;
 
 const appDir = path.resolve();
-
-// [유효성 검사]
-// name, email, password, confirmPassword 유효성 검사 함수
-const validateName = check('name')
-  .matches(/^[가-힣a-zA-Z\s]+$/)
-  .withMessage('이름은 한글, 영어만 사용할 수 있습니다.')
-  .isLength({ max: 10 })
-  .withMessage('이름은 최대 10글자까지 입력할 수 있습니다.');
-
-const validateEmail = check('email')
-  .isEmail()
-  .withMessage('이메일 형식이 옳지 않습니다.');
-
-const validatePassword = check('password')
-.matches(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
-.withMessage('비밀번호는 영문(대/소문자), 숫자, 특수문자 2종류 이상의 조합으로 이루어져야 합니다.')
-.isLength({ min: 8, max: 12 })
-.withMessage('비밀번호는 8~12글자 이내로 입력할 수 있습니다.');
-
-const validateConfirmPassword = check('confirmPassword')
-.custom((value, { req }) => value === req.body.password)
-.withMessage('비밀번호가 일치하지 않습니다.');
 
 // [회원가입]
 // 이메일 인증번호 발송 함수
@@ -65,12 +45,8 @@ const sendVerificationEmail = async (name, email, verificationCode, subject) => 
 export const authEmail = [
   validateName,
   validateEmail,
+  validateMiddleware,
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { name, email } = req.body;
 
     if (!name || !email) {
@@ -104,12 +80,8 @@ export const authEmail = [
 export const createUser = [
   validatePassword,
   validateConfirmPassword,
+  validateMiddleware,
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, verificationCode, password, confirmPassword } = req.body;
 
     if (!email || !verificationCode || !password || !confirmPassword) {
@@ -147,12 +119,8 @@ export const createUser = [
 export const loginUser = [
   validateEmail,
   validatePassword,
+  validateMiddleware,
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, password, autoLogin = false } = req.body;
 
     if (!email || !password) {
@@ -227,13 +195,9 @@ export const refreshAccessToken = async (req, res) => {
 // 비밀번호 재설정을 위한 인증번호 발송 함수
 export const resetPasswordEmail = [
   validateEmail,
+  validateMiddleware,
   async (req, res) => {
     const { email } = req.body;
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
 
     if (!email) {
       return res.status(400).send('이메일을 입력해주세요.');
@@ -266,12 +230,8 @@ export const resetPasswordEmail = [
 export const resetPassword = [
   validatePassword,
   validateConfirmPassword,
+  validateMiddleware,
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, verificationCode, newPassword } = req.body;
 
     try {
