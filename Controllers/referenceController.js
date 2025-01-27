@@ -9,10 +9,18 @@ export const addReference = async (req, res) => {
   try {
     const { collectionTitle, title, keywords, memo, links } = req.body;
 
+    // 유저 인증 확인
+    const userId = req.user.id;
+
     // Collection 확인
-    const collection = await Collection.findOne({ title: collectionTitle });
+    const collection = await Collection.findOne({
+      title: collectionTitle,
+      createdBy: userId, // 유저가 생성한 콜렉션만
+    });
     if (!collection) {
-      return res.status(404).json({ error: "해당 콜렉션이 존재하지 않습니다." });
+      return res
+        .status(404)
+        .json({ error: "해당 콜렉션을 찾을 수 없습니다." });
     }
 
     const files = [];
@@ -356,71 +364,107 @@ export const deleteReference = async (req, res) => {
 };
 
 
-// 레퍼런스 홈 
+// 레퍼런스 홈
 export const getReference = async (req, res) => {
-  const { sortBy = 'latest', page = 1, limit = 10, collection = 'all', filterBy = 'all', search = "", view = 'card' } = req.query;
+  const {
+    sortBy = "latest",
+    page = 1,
+    limit = 10,
+    collection = "all",
+    filterBy = "all",
+    search = "",
+    view = "card",
+  } = req.query;
+
+  const userId = req.user.id; // 인증된 유저 ID
   const collectionArray = Array.isArray(collection) ? collection : [collection];
-  let sharedList=[];
+  let sharedList = [];
   let referenceArray = [];
   let collectionSearch;
   let collectionSearchArray = [];
+
   try {
-    // 전체 레퍼런스 조회 (collection 선택 x)
-    if (collectionArray[0] == 'all'){
-      collectionSearch = {};
-      // 레퍼런스가 존재하지 않는 경우
+    // 전체 레퍼런스 조회 (특정 컬렉션 선택 X)
+    if (collectionArray[0] === "all") {
+      collectionSearch = {
+        $or: [
+          { createdBy: userId },
+          { "sharedWith.userId": userId },
+        ],
+      };
+
       referenceArray = await Reference.find({});
-      if(referenceArray.length==0){
-        res.status(201).json({ message: "아직 추가한 레퍼런스가 없어요.\n레퍼런스를 추가해보세요!"});
+      if (referenceArray.length === 0) {
+        return res.status(201).json({
+          message: "아직 추가한 레퍼런스가 없어요.\n레퍼런스를 추가해보세요!",
+        });
       }
-    }
-    // 특정 collection 조회 (collection 선택 o)
-    else {
-      for( const col of collectionArray ){
-        const col = (await Collection.findOne({ title : `${col}`}));
-        const colId = col._id;
-        if (col.sharedWith == []){
+    } else {
+      // 특정 컬렉션 조회 (collection 선택 O)
+      for (const col of collectionArray) {
+        const collection = await Collection.findOne({
+          title: col,
+          $or: [
+            { createdBy: userId },
+            { "sharedWith.userId": userId },
+          ],
+        });
+
+        if (!collection) {
+          continue; // 유저에게 해당 컬렉션 권한이 없으면 건너뜀
+        }
+
+        const colId = collection._id;
+        if (collection.sharedWith.length === 0) {
           sharedList.push(colId);
         }
-        collectionSearchArray.push({ collectionId: `${colId}` });
-      }
-      collectionSearch = { collectionId: { $in: collectionSearchArray.map((obj) => obj.collectionId) } };
 
+        collectionSearchArray.push({ collectionId: colId });
+      }
+
+      collectionSearch = {
+        collectionId: {
+          $in: collectionSearchArray.map((obj) => obj.collectionId),
+        },
+      };
     }
 
+    // 정렬 기준 설정
     let sort;
     switch (sortBy) {
-      case 'latest':
+      case "latest":
         sort = { createdAt: -1 };
         break;
-      case 'oldest':
+      case "oldest":
         sort = { createdAt: 1 };
         break;
-      case 'sortAsc':
+      case "sortAsc":
         sort = { title: 1 };
         break;
-      case 'sortDesc':
-        sort = { title: -1} ;
+      case "sortDesc":
+        sort = { title: -1 };
         break;
       default:
-        sort = { createdAt: -1 }; 
+        sort = { createdAt: -1 };
         break;
     }
 
+    // 필터링 조건 설정
     let filterSearch;
-    // 검색 기능 
     switch (filterBy) {
-      case 'title':
-        filterSearch = { title: { $regex: `${search}`, $options: 'i' } };
+      case "title":
+        filterSearch = { title: { $regex: `${search}`, $options: "i" } };
         break;
-      case 'keyword':
-        filterSearch = { keywords: { $regex: `${search}`, $options: 'i'}};
+      case "keyword":
+        filterSearch = {
+          keywords: { $regex: `${search}`, $options: "i" },
+        };
         break;
       case "all":
         filterSearch = {
           $or: [
-            { title: { $regex: `${search}`, $options: 'i' } },
-            { keywords: { $regex: `${search}`, $options: 'i' } },
+            { title: { $regex: `${search}`, $options: "i" } },
+            { keywords: { $regex: `${search}`, $options: "i" } },
           ],
         };
         break;
@@ -428,56 +472,65 @@ export const getReference = async (req, res) => {
         filterSearch = {};
     }
 
-
+    // 총 레퍼런스 개수 계산
     const totalItemCount = await Reference.countDocuments({
       ...collectionSearch,
       ...filterSearch,
     });
-    if (totalItemCount == 0) {
-      res.status(201).json({ message: "검색 결과가 없어요.\n다른 검색어로 시도해 보세요!"})
-    } else {
-      const totalPages = Math.ceil(totalItemCount/limit);
-      const currentPage = Number(page) > totalPages ? totalPages : Number(page);
-      const skip = (currentPage - 1) * limit;
 
-      const data = await Reference.find({
-        ...collectionSearch,
-        ...filterSearch,
-      })
-        .skip(skip)
-        .limit(limit)
-        .sort(sort);
-  
-        let finalData;
-        switch (view) {
-          case 'card':
-            finalData = data.map((item, index) => ({
-              ...item.toObject(), 
-              sharing: sharedList.includes(item.collectionId)
-            }));
-            break;
-          case 'list':
-            finalData = data.map((item, index) => ({
-              ...item.toObject(), 
-              number: skip + index + 1
-            }));
-            break;
-          default:
-            finalData = data.map((item, index) => ({
-              ...item.toObject(), 
-              sharing: sharedList.includes(item.collectionId)
-            }));
-            break;
-        }
-
-        res.status(201).json({
-          currentPage: currentPage,
-          totalPages: totalPages,
-          totalItemCount: totalItemCount,
-          data: finalData
-        });
+    if (totalItemCount === 0) {
+      return res.status(201).json({
+        message: "검색 결과가 없어요.\n다른 검색어로 시도해보세요!",
+      });
     }
+
+    // 페이지네이션 계산
+    const totalPages = Math.ceil(totalItemCount / limit);
+    const currentPage = Number(page) > totalPages ? totalPages : Number(page);
+    const skip = (currentPage - 1) * limit;
+
+    // 레퍼런스 조회
+    const data = await Reference.find({
+      ...collectionSearch,
+      ...filterSearch,
+    })
+      .skip(skip)
+      .limit(limit)
+      .sort(sort);
+
+    // 결과 데이터 변환
+    let finalData;
+    switch (view) {
+      case "card":
+        finalData = data.map((item) => ({
+          ...item.toObject(),
+          sharing: sharedList.includes(item.collectionId),
+        }));
+        break;
+      case "list":
+        finalData = data.map((item, index) => ({
+          ...item.toObject(),
+          number: skip + index + 1,
+        }));
+        break;
+      default:
+        finalData = data.map((item) => ({
+          ...item.toObject(),
+          sharing: sharedList.includes(item.collectionId),
+        }));
+        break;
+    }
+
+    res.status(201).json({
+      currentPage,
+      totalPages,
+      totalItemCount,
+      data: finalData,
+    });
   } catch (error) {
-    res.status(500).json({ message: "레퍼런스 조회 오류", error: error.message });
-}
-}
+    console.error("레퍼런스 조회 오류:", error.message);
+    res
+      .status(500)
+      .json({ message: "레퍼런스 조회 중 오류가 발생했습니다.", error: error.message });
+  }
+};
