@@ -14,6 +14,9 @@ const router = express.Router();
 // 레퍼런스 추가
 router.post("/reference", upload, addReference);
 
+// 레퍼런스 목록 조회
+router.get("/reference", getReference);
+
 // 레퍼런스 수정
 router.patch("/reference/:referenceId", upload, updateReference);
 
@@ -25,7 +28,5 @@ router.delete("/reference/:referenceId", deleteReference);
 
 // 파일 다운로드
 router.get("/file/:id", downloadFile);
-
-router.get("/reference", getReference);
 
 export default router;

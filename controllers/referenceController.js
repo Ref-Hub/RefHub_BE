@@ -1,5 +1,5 @@
-import Reference from "../models/reference.js";
-import Collection from "../models/collection.js";
+import Reference from "../models/Reference.js";
+import Collection from "../models/Collection.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import mongoose from "mongoose";
 
@@ -335,7 +335,6 @@ export const deleteReference = async (req, res) => {
   }
 };
 
-
 // 레퍼런스 홈 
 export const getReference = async (req, res) => {
   const { sortBy = 'latest', page = 1, limit = 10, collection = 'all', filterBy = 'all', search = "", view = 'card' } = req.query;
@@ -461,3 +460,4 @@ export const getReference = async (req, res) => {
     res.status(500).json({ message: "레퍼런스 조회 오류", error: error.message });
 }
 }
+

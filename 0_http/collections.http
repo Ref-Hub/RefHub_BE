@@ -1,0 +1,58 @@
+GET http://localhost:3000
+###
+GET http://localhost:3000/api/collections
+###
+GET http://localhost:3000/api/collections
+Authorization: notInvalidToken
+###
+GET http://localhost:3000/api/collections
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+###
+POST http://localhost:3000/api/collections
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+
+{
+  "title": "test7"
+}
+###
+GET http://localhost:3000/api/collections
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+###
+PATCH http://localhost:3000/api/collections/6794f05555d6aaaad2d04d46
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+
+{
+  "title": "testtesttesttesttesttesttesttest"
+}
+###
+PATCH http://localhost:3000/api/collections/6794f05555d6aaaad2d04d46
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+
+{
+  "title": "test8"
+}
+###
+GET http://localhost:3000/api/collections
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+###
+PATCH http://localhost:3000/api/collections/6794f05555d6aaaad2d04d46/favorite
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+
+{
+
+}
+###
+GET http://localhost:3000/api/collections
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+###
+DELETE http://localhost:3000/api/collections
+Content-Type: application/json
+Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ODUxZTdjZDAwYzRhNTg0M2M4ODMwMyIsImVtYWlsIjoieXlqOTY5NDY1MUBnbWFpbC5jb20iLCJpYXQiOjE3Mzc4MTM5NTksImV4cCI6MTczNzgxNzU1OX0.cu6GNOLNIcpWHeyhjoeJJMH21Erim4oDqNqGomvt-tQ
+
+{
+  "collectionIds": ["6794f05555d6aaaad2d04d46"]
+}
