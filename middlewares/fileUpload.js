@@ -29,7 +29,11 @@
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
   }).fields([
     { name: "files", maxCount: 5 }, // PDF 파일
-    { name: "images" }, // 이미지 파일
+    { name: "images1" }, // 이미지 파일1
+    { name: "images2" }, // 이미지 파일2
+    { name: "images3" }, // 이미지 파일3
+    { name: "images4" }, // 이미지 파일4
+    { name: "images5" }, // 이미지 파일5
     { name: "otherFiles", maxCount: 5 }, // 기타 파일
   ]);
   

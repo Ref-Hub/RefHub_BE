@@ -1,7 +1,9 @@
 import Reference from "../models/reference.js";
 import Collection from "../models/Collection.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
+import { getFileUrl } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
+
 
 
 // 레퍼런스 추가
@@ -42,46 +44,42 @@ export const addReference = async (req, res) => {
           type: "link",
           path: link,
           size: 0,
+          previewURL: link,
         });
         totalAttachments++;
       }
     }
 
-    // 이미지 리스트 처리
-    if (req.files.images) {
-      const imagePaths = [];
-      let totalImageSize = 0;
-
-      for (const image of req.files.images) {
-        if (imagePaths.length >= 5) {
-          // 현재 리스트가 5개를 초과하면 새 이미지 리스트 생성
-          files.push({
-            type: "image",
-            path: imagePaths.join(", "),
-            size: totalImageSize,
-            images: imagePaths,
-          });
-          totalAttachments++;
-          if (totalAttachments >= 5) {
-            return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
-          }
-          imagePaths.length = 0; // 새 리스트를 위해 초기화
-          totalImageSize = 0;
+    // 이미지 리스트 처리 (images1, images2, ..., images5)
+    for (let i = 1; i <= 5; i++) {
+      const key = `images${i}`;
+      if (req.files[key]) {
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
-        const uploadedImage = await uploadFileToGridFS(image, "uploads");
-        imagePaths.push(uploadedImage.id.toString());
-        totalImageSize += image.size; // 이미지 크기 합산
-      }
+        const imagePaths = [];
+        const previewURLs = [];
+        let totalImageSize = 0;
 
-      // 남아 있는 이미지 리스트 처리
-      if (imagePaths.length > 0) {
+        // 이미지 리스트 내 이미지 처리
+        const images = Array.isArray(req.files[key]) ? req.files[key] : [req.files[key]];
+        for (const image of images) {
+          const uploadedImage = await uploadFileToGridFS(image, "uploads");
+          imagePaths.push(uploadedImage.id.toString());
+          previewURLs.push(getFileUrl(uploadedImage.id.toString()));
+          totalImageSize += image.size;
+        }
+
+        // 이미지 리스트를 하나의 첨부 자료로 처리
         files.push({
           type: "image",
           path: imagePaths.join(", "),
           size: totalImageSize,
           images: imagePaths,
+          previewURLs: previewURLs,
         });
+
         totalAttachments++;
       }
     }
@@ -99,10 +97,12 @@ export const addReference = async (req, res) => {
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        const URL = getFileUrl(uploadedFile.id.toString());
         files.push({
           type: "pdf",
           path: uploadedFile.id.toString(),
           size: file.size,
+          previewURL: URL,
         });
         totalAttachments++;
       }
@@ -124,10 +124,12 @@ export const addReference = async (req, res) => {
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        const URL = getFileUrl(uploadedFile.id.toString());
         files.push({
           type: "file",
           path: uploadedFile.id.toString(),
           size: file.size,
+          previewURL: URL,
         });
         totalAttachments++;
       }
@@ -158,7 +160,10 @@ export const addReference = async (req, res) => {
 export const updateReference = async (req, res) => {
   try {
     const { referenceId } = req.params;
-    const { title, keywords, memo, links } = req.body;
+    const { collectionTitle, title, keywords, memo, links } = req.body;
+
+    // 유저 인증 확인
+    const userId = req.user.id;
 
     // 기존 레퍼런스 가져오기
     const reference = await Reference.findById(referenceId);
@@ -166,21 +171,64 @@ export const updateReference = async (req, res) => {
       return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
+    // 레퍼런스를 저장할 컬렉션 확인 및 업데이트
+    if (collectionTitle) {
+      const newCollection = await Collection.findOne({
+        title: collectionTitle,
+        createdBy: req.user.id, // 해당 유저가 생성한 컬렉션이어야 함
+      });
+
+      if (!newCollection) {
+        return res.status(404).json({ error: "해당 컬렉션을 찾을 수 없습니다." });
+      }
+
+      reference.collectionId = newCollection._id; // 새로운 컬렉션으로 업데이트
+    }
+
     const db = mongoose.connection.db; // MongoDB 연결 객체
     const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
 
     // 기존 첨부 자료 삭제
     for (const file of reference.files) {
-      if (file.type === "file" || file.type === "pdf" || file.type === "image") {
+      console.log("파일 데이터:", file); // 각 file 객체 출력
+      if (file.type === "file" || file.type === "pdf") {
         try {
-          const objectId = new mongoose.Types.ObjectId(file.path);
-          await bucket.delete(objectId); // GridFS에서 파일 삭제
-          console.log(`기존 파일 삭제 완료: ${file.path}`);
+          // path 값을 콤마로 분리하여 각각의 ID 처리
+          const objectIds = file.path.split(",").map((id) => id.trim()); // 콤마로 구분된 ID를 배열로 변환
+
+          for (const id of objectIds) {
+            if (mongoose.Types.ObjectId.isValid(id)) {
+              // ID가 유효한 ObjectId인지 확인
+              const objectId = new mongoose.Types.ObjectId(id);
+              await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
+              console.log(`기존 파일 삭제 완료: ${id}`);
+            } else {
+              console.warn(`유효하지 않은 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+            }
+          }
         } catch (err) {
           console.error(`파일 삭제 실패: ${file.path}`, err.message);
         }
+      } else if (file.type === "image") {
+        try {
+          console.log("이미지 파일 ID 배열:", file.images);
+          // file.images 배열을 순회하여 각각의 ID 처리
+          for (const id of file.images) {
+            if (mongoose.Types.ObjectId.isValid(id)) {
+              // ID가 유효한 ObjectId인지 확인
+              const objectId = new mongoose.Types.ObjectId(id);
+              await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
+              console.log(`기존 이미지 파일 삭제 완료: ${id}`);
+            } else {
+              console.warn(`유효하지 않은 이미지 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+            }
+          }
+        } catch (err) {
+          console.error(`이미지 파일 삭제 실패: ${file.images}`, err.message);
+        }
       }
     }
+
 
     // 기존 첨부 자료 초기화
     const files = [];
@@ -202,30 +250,44 @@ export const updateReference = async (req, res) => {
           type: "link",
           path: link,
           size: 0,
+          previewURL: link,
         });
         totalAttachments++;
       }
     }
 
-    // 이미지 리스트 처리
-    if (req.files.images) {
-      if (req.files.images.length > 5) {
-        return res.status(400).json({ error: "이미지 리스트는 최대 5개까지 가능합니다." });
-      }
+    // 이미지 리스트 처리 (images1, images2, ..., images5)
+    for (let i = 1; i <= 5; i++) {
+      const key = `images${i}`;
+      if (req.files[key]) {
+        if (totalAttachments >= 5) {
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+        }
 
-      const imagePaths = [];
-      for (const image of req.files.images) {
-        const uploadedImage = await uploadFileToGridFS(image, "uploads");
-        imagePaths.push(uploadedImage.id.toString());
-      }
+        const imagePaths = [];
+        const previewURLs = [];
+        let totalImageSize = 0;
 
-      files.push({
-        type: "image",
-        path: imagePaths.join(", "),
-        size: req.files.images.reduce((acc, img) => acc + img.size, 0),
-        images: imagePaths,
-      });
-      totalAttachments++;
+        // 이미지 리스트 내 이미지 처리
+        const images = Array.isArray(req.files[key]) ? req.files[key] : [req.files[key]];
+        for (const image of images) {
+          const uploadedImage = await uploadFileToGridFS(image, "uploads");
+          imagePaths.push(uploadedImage.id.toString());
+          previewURLs.push(getFileUrl(uploadedImage.id.toString()));
+          totalImageSize += image.size;
+        }
+
+        // 이미지 리스트를 하나의 첨부 자료로 처리
+        files.push({
+          type: "image",
+          path: imagePaths.join(", "),
+          size: totalImageSize,
+          images: imagePaths,
+          previewURLs: previewURLs,
+        });
+
+        totalAttachments++;
+      }
     }
 
     // PDF 처리
@@ -241,10 +303,12 @@ export const updateReference = async (req, res) => {
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        const URL = getFileUrl(uploadedFile.id.toString());
         files.push({
           type: "pdf",
           path: uploadedFile.id.toString(),
           size: file.size,
+          previewURL: URL,
         });
         totalAttachments++;
       }
@@ -266,10 +330,12 @@ export const updateReference = async (req, res) => {
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
+        const URL = getFileUrl(uploadedFile.id.toString());
         files.push({
           type: "file",
           path: uploadedFile.id.toString(),
           size: file.size,
+          previewURL: URL,
         });
         totalAttachments++;
       }
@@ -314,6 +380,8 @@ export const getReferenceDetail = async (req, res) => {
         path: file.path,
         size: file.size,
         images: file.images || null, // 이미지일 경우 이미지 리스트 포함
+        previewURLs: file.previewURLs || null, // 이미지일 경우 프리뷰 URL 포함
+        previewURL: file.previewURL || null, // PDF 또는 기타 파일일 경우 프리뷰 URL 포함
       })),
     };
 
@@ -342,13 +410,41 @@ export const deleteReference = async (req, res) => {
 
     // 첨부 자료 삭제
     for (const file of reference.files) {
-      if (file.type === "file" || file.type === "pdf" || file.type === "image") {
+      console.log("파일 데이터:", file); // 각 file 객체 출력
+      if (file.type === "file" || file.type === "pdf") {
         try {
-          const objectId = new mongoose.Types.ObjectId(file.path);
-          await bucket.delete(objectId); // GridFS에서 파일 삭제
-          console.log(`기존 파일 삭제 완료: ${file.path}`);
+          // path 값을 콤마로 분리하여 각각의 ID 처리
+          const objectIds = file.path.split(",").map((id) => id.trim()); // 콤마로 구분된 ID를 배열로 변환
+
+          for (const id of objectIds) {
+            if (mongoose.Types.ObjectId.isValid(id)) {
+              // ID가 유효한 ObjectId인지 확인
+              const objectId = new mongoose.Types.ObjectId(id);
+              await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
+              console.log(`기존 파일 삭제 완료: ${id}`);
+            } else {
+              console.warn(`유효하지 않은 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+            }
+          }
         } catch (err) {
           console.error(`파일 삭제 실패: ${file.path}`, err.message);
+        }
+      } else if (file.type === "image") {
+        try {
+          console.log("이미지 파일 ID 배열:", file.images);
+          // file.images 배열을 순회하여 각각의 ID 처리
+          for (const id of file.images) {
+            if (mongoose.Types.ObjectId.isValid(id)) {
+              // ID가 유효한 ObjectId인지 확인
+              const objectId = new mongoose.Types.ObjectId(id);
+              await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
+              console.log(`기존 이미지 파일 삭제 완료: ${id}`);
+            } else {
+              console.warn(`유효하지 않은 이미지 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+            }
+          }
+        } catch (err) {
+          console.error(`이미지 파일 삭제 실패: ${file.images}`, err.message);
         }
       }
     }

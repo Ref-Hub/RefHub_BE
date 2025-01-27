@@ -8,6 +8,7 @@ import {
 } from "../Controllers/referenceController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/fileUpload.js";
+import downloadFile from "../middlewares/fileDownload.js";
 
 const router = express.Router();
 
@@ -25,5 +26,8 @@ router.get("/:referenceId", authMiddleware, getReferenceDetail);
 
 // 레퍼런스 삭제
 router.delete("/:referenceId", authMiddleware, deleteReference);
+
+// 파일 다운로드
+router.get("/file/:id", authMiddleware, downloadFile);
 
 export default router;
