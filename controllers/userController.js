@@ -71,6 +71,7 @@ export const authEmail = [
 
       res.status(200).send('인증번호 메일이 전송되었습니다.');
     } catch (error) {
+      console.error('인증번호 메일 전송 중 오류가 발생했습니다.:', error);
       res.status(500).send('인증번호 메일 전송 중 오류가 발생했습니다.');
     }
   },
@@ -109,6 +110,7 @@ export const createUser = [
 
       res.status(200).send('회원가입이 완료되었습니다.');
     } catch (error) {
+      console.error('회원가입 중 오류가 발생했습니다.:', error);
       res.status(500).send('회원가입 중 오류가 발생했습니다.');
     }
   },
@@ -157,6 +159,7 @@ export const loginUser = [
 
       res.status(200).json({ message: '로그인이 완료되었습니다.', accessToken, refreshToken, autoLogin });
     } catch (error) {
+      console.error('로그인 중 오류가 발생했습니다.:', error);
       res.status(500).send('로그인 중 오류가 발생했습니다.');
     }
   },
@@ -221,6 +224,7 @@ export const resetPasswordEmail = [
 
       res.status(200).send('비밀번호 재설정을 위한 인증번호가 발송되었습니다.');
     } catch (error) {
+      console.error('인증번호 메일 전송 중 오류가 발생했습니다.:', error);
       res.status(500).send('비밀번호 재설정을 위한 인증번호 메일 전송 중 오류가 발생했습니다.');
     }
   }
@@ -254,6 +258,7 @@ export const resetPassword = [
 
       res.status(200).send('비밀번호가 성공적으로 변경되었습니다.');
     } catch (error) {
+      console.error('비밀번호 변경 중 오류가 발생했습니다.:', error);
       res.status(500).send('비밀번호 변경 중 오류가 발생했습니다.');
     }
   },
