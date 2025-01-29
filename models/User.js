@@ -17,7 +17,9 @@ const userSchema = new mongoose.Schema({
     type: Number,
     max: 999999
   }
-});
+},
+{ versionKey: false }
+);
 
 const User = mongoose.model('User', userSchema);
 export default User;
