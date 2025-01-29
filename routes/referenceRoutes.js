@@ -4,7 +4,8 @@ import {
   updateReference,
   getReferenceDetail,
   deleteReference,
-} from "../Controllers/referenceController.js";
+  getReference,
+} from "../controllers/referenceController.js";
 import { upload } from "../middlewares/fileUpload.js";
 import downloadFile from "../middlewares/fileDownload.js";
 
@@ -12,6 +13,9 @@ const router = express.Router();
 
 // 레퍼런스 추가
 router.post("/reference", upload, addReference);
+
+// 레퍼런스 목록 조회
+router.get("/reference", getReference);
 
 // 레퍼런스 수정
 router.patch("/reference/:referenceId", upload, updateReference);
