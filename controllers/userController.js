@@ -25,7 +25,7 @@ const sendVerificationEmail = async (name, email, verificationCode, subject) => 
   const emailTemplate = await ejs.renderFile(emailTemplatePath, { authCode: verificationCode, name });
 
   const mailOptions = {
-    from: process.env.USER,
+    from: process.env.EMAIL_USER,
     to: email,
     subject,
     html: emailTemplate,
