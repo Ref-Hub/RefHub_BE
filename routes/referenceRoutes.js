@@ -5,7 +5,7 @@ import {
   getReference,
   getReferenceDetail,
   deleteReference,
-} from "../Controllers/referenceController.js";
+} from "../controllers/referenceController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/fileUpload.js";
 import downloadFile from "../middlewares/fileDownload.js";
