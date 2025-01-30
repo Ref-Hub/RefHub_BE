@@ -43,7 +43,7 @@ const errorHandler = (err, req, res, next) => {
 // 라우트 설정
 app.use("/api/users", userRoutes);
 app.use("/api/collections", collectionRoutes);
-app.use("/api", referenceRoutes);
+app.use("/api/references", referenceRoutes);
 
 app.use(errorHandler);
 app.listen(process.env.PORT || 3000, () => console.log("Server Started"));
