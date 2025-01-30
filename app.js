@@ -45,5 +45,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/references", referenceRoutes);
 
+app.get('/aws', (req, res) => {
+  res.status(200).send('OK');
+});
+
 app.use(errorHandler);
 app.listen(process.env.PORT || 3000, () => console.log("Server Started"));
