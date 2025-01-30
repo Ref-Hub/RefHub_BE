@@ -1,23 +1,11 @@
 import { StatusCodes } from "http-status-codes";
 import Collection from "../models/Collection.js";
 import User from "../models/User.js";
-import { createTransport } from "nodemailer";
+import { smtpTransport } from '../config/email.js';
 import path from "path";
 import ejs from "ejs";
 
 const appDir = path.resolve();
-
-// 메일 발송에 필요한 변수 정의
-const transporter = createTransport({
-  service: "gmail",
-  auth: {
-    type: "OAuth2",
-    user: process.env.GMAIL_OAUTH_USER,
-    clientId: process.env.GMAIL_OAUTH_CLIENT_ID,
-    clientSecret: process.env.GAMIL_OAUTH_CLIENT_SECRET,
-    refreshToken: process.env.GAMIL_OAUTH_REFRESH_TOKEN,
-  },
-});
 
 const sendEmail = async (
   email,
@@ -34,7 +22,7 @@ const sendEmail = async (
     link: link,
   });
   const mailOptions = {
-    from: process.env.GMAIL_OAUTH_USER,
+    from: process.env.EMAIL_USER,
     to: email,
     subject: `📁RefHub📁 ${ownerName}님이 ${collectionName} 컬렉션에 초대했습니다.`,
     html: emailTemplate,
@@ -47,7 +35,7 @@ const sendEmail = async (
     ],
   };
   try {
-    await transporter.sendMail(mailOptions);
+    await smtpTransport.sendMail(mailOptions);
     console.log("Email send successfully");
   } catch (err) {
     console.error("Email send failed", err);
