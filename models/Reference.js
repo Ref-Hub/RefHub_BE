@@ -19,12 +19,12 @@ const referenceSchema = new mongoose.Schema({
       path: { type: String, required: true },
       size: { type: Number, required: true },
       images: { type: [String], default: [] },
+      previewURL: { type: String },
+      previewURLs: { type: [String] },
     },
   ],
   createdAt: { type: Date, default: Date.now },
-},
-{ versionKey: false }
-);
+});
 
 function keywordsValidation(keywords) {
   return keywords.every((kw) => kw.length <= 15);
