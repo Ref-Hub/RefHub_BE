@@ -47,31 +47,28 @@
       }
 
       console.log("파일 업로드 시작:", file.originalname);
-
+  
       const uploadStream = bucket.openUploadStream(file.originalname, {
         contentType: file.mimetype,
         metadata: { uploadedBy: "user" },
       });
-
-      uploadStream.write(file.buffer); // 스트림에 데이터 쓰기
-      uploadStream.end(); // 스트림 종료
-
-      uploadStream.on("finish", (fileData) => {
-        console.log("업로드 스트림 완료 이벤트 발생:", fileData);
-        if (!fileData || !fileData._id) {
-          console.error("GridFS 파일 업로드 실패: fileData 또는 _id 없음", {
-            fileData,
-            fileId: fileData ? fileData._id : null,
-          });
+  
+      uploadStream.end(file.buffer);
+  
+      uploadStream.on("finish", () => {
+        console.log("업로드 스트림 완료 이벤트 발생. 파일 ID:", uploadStream.id);
+  
+        if (!uploadStream.id) {
+          console.error("GridFS 파일 업로드 실패: _id 없음");
           return reject(new Error("File upload failed. No _id returned."));
         }
         resolve({
-          id: fileData._id,
-          filename: fileData.filename,
-          contentType: fileData.contentType,
+          id: uploadStream.id,
+          filename: file.originalname,
+          contentType: file.mimetype,
         });
       });
-
+  
       uploadStream.on("error", (err) => {
         console.error("GridFS 업로드 스트림 오류:", err.message);
         reject(err);
