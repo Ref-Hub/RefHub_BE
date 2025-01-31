@@ -59,7 +59,10 @@
       uploadStream.on("finish", (fileData) => {
         console.log("업로드 스트림 완료 이벤트 발생:", fileData);
         if (!fileData || !fileData._id) {
-          console.error("GridFS 파일 업로드 실패: fileData 또는 _id 없음");
+          console.error("GridFS 파일 업로드 실패: fileData 또는 _id 없음", {
+            fileData,
+            fileId: fileData ? fileData._id : null,
+          });
           return reject(new Error("File upload failed. No _id returned."));
         }
         resolve({
