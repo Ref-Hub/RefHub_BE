@@ -5,6 +5,8 @@ import {
   getReference,
   getReferenceDetail,
   deleteReference,
+  moveReferences,
+  deleteReferences
 } from "../Controllers/referenceController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/fileUpload.js";
@@ -26,6 +28,12 @@ router.get("/:referenceId", authMiddleware, getReferenceDetail);
 
 // 레퍼런스 삭제
 router.delete("/:referenceId", authMiddleware, deleteReference);
+
+// 레퍼런스 삭제 모드 (레퍼런스 묶음 삭제)
+router.delete("/delete", authMiddleware, deleteReferences);
+
+// 레퍼런스 이동 모드
+router.patch("/", authMiddleware, moveReferences);
 
 // 파일 다운로드
 router.get("/file/:id", authMiddleware, downloadFile);

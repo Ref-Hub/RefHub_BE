@@ -1,5 +1,6 @@
 import Reference from "../models/reference.js";
 import Collection from "../models/Collection.js";
+import CollectionShare from "../models/collectionShare.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import { getFileUrl } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
@@ -394,7 +395,7 @@ export const getReferenceDetail = async (req, res) => {
 
 
 
-// 레퍼런스 삭제 기능
+// 레퍼런스 삭제 모드 
 export const deleteReference = async (req, res) => {
   try {
     const { referenceId } = req.params;
@@ -465,65 +466,55 @@ export const getReference = async (req, res) => {
   const {
     sortBy = "latest",
     page = 1,
-    limit = 10,
     collection = "all",
     filterBy = "all",
     search = "",
     view = "card",
+    mode = "home"
   } = req.query;
-
+  const limit = 15;
   const userId = req.user.id; // 인증된 유저 ID
   const collectionArray = Array.isArray(collection) ? collection : [collection];
-  let sharedList = [];
-  let referenceArray = [];
-  let collectionSearch;
-  let collectionSearchArray = [];
+  let referenceArray = []; // 검색 결과로 얻은 reference
+  let collectionSearch = {
+    $or: [
+      { createdBy: userId }, 
+      { "sharedWith.userId": userId }, 
+    ]};
 
   try {
+    let userCollectionList = await Collection.find( collectionSearch ); // 모든 collection, 검색된 collection
+    let collectionIdList = userCollectionList.map(collection => collection._id); // 모든 collection의 id
+    let notSharedCollectoinList = []; // 공유되지 않은 collection의 id
+    let viewerList = []; // collection에 viewer로 참여 id
+    let editorList = []; // collection 생성자 또는 editor로 참여 id
+    for (const col of userCollectionList){
+      if (col.sharedWith == []){
+        notSharedCollectoinList.push(col._id);
+      }
+      else if(col.sharedWith.userId==userId && col.sharedWith.role == "viewer"){
+        viewerList.push(col._id);
+      }
+      else {
+        editorList.push(col._id);
+      }
+    }
+
     // 전체 레퍼런스 조회 (특정 컬렉션 선택 X)
     if (collectionArray[0] === "all") {
-      collectionSearch = {
-        $or: [
-          { createdBy: userId },
-          { "sharedWith.userId": userId },
-        ],
-      };
-
-      referenceArray = await Reference.find({});
+      referenceArray = await Reference.find({collectionId: { $in: collectionIdList }});
       if (referenceArray.length === 0) {
-        return res.status(201).json({
+        return res.status(200).json({
           message: "아직 추가한 레퍼런스가 없어요.\n레퍼런스를 추가해보세요!",
         });
       }
     } else {
       // 특정 컬렉션 조회 (collection 선택 O)
-      for (const col of collectionArray) {
-        const collection = await Collection.findOne({
-          title: col,
-          $or: [
-            { createdBy: userId },
-            { "sharedWith.userId": userId },
-          ],
-        });
-
-        if (!collection) {
-          continue; // 유저에게 해당 컬렉션 권한이 없으면 건너뜀
-        }
-
-        const colId = collection._id;
-        if (collection.sharedWith.length === 0) {
-          sharedList.push(colId);
-        }
-
-        collectionSearchArray.push({ collectionId: colId });
+      userCollectionList = await Collection.find({ // 입력받은 collection의 ID
+        ...collectionSearch,
+        title: { $in: collectionArray }});
+        collectionIdList = userCollectionList.map(collection => collection._id);
       }
-
-      collectionSearch = {
-        collectionId: {
-          $in: collectionSearchArray.map((obj) => obj.collectionId),
-        },
-      };
-    }
 
     // 정렬 기준 설정
     let sort;
@@ -572,57 +563,104 @@ export const getReference = async (req, res) => {
     const totalItemCount = await Reference.countDocuments({
       ...collectionSearch,
       ...filterSearch,
+      collectionId: { $in: collectionIdList }
     });
 
     if (totalItemCount === 0) {
-      return res.status(201).json({
+      return res.status(200).json({
         message: "검색 결과가 없어요.\n다른 검색어로 시도해보세요!",
       });
+    } else {
+      // 페이지네이션 계산
+      const totalPages = Math.ceil(totalItemCount / limit);
+      const currentPage = Number(page) > totalPages ? totalPages : Number(page);
+      const skip = (currentPage - 1) * limit;
+
+      // 레퍼런스 조회
+      const data = await Reference.find({
+        ...collectionSearch,
+        ...filterSearch,
+        collectionId: { $in: collectionIdList }
+      })
+        .skip(skip)
+        .limit(limit)
+        .sort(sort);
+
+      // 결과 데이터 변환
+      let finalData;
+
+      switch (view) {
+        case "card":
+          finalData = data.map((item) => {
+            const { memo, ...obj } = item.toObject();
+            return {
+              ...obj,
+              viewer: viewerList.includes(item.collectionId),
+              editor: editorList.includes(item.collectionId)
+            };
+          });
+          break;
+        case "list":
+          finalData = data.map((item, index) => {
+            const { memo, files, ...obj } = item.toObject();
+            return {
+              ...obj,
+              number: skip + index + 1,
+              viewer: viewerList.includes(item.collectionId),
+              editor: editorList.includes(item.collectionId)
+            };
+          });
+          break;
+        default:
+          finalData = data.map((item) => {
+            const { memo, ...obj } = item.toObject();
+            return {
+              ...obj,
+              viewer: viewerList.includes(item.collectionId),
+              editor: editorList.includes(item.collectionId)
+            };
+          });
+          break;
+      }
+
+      switch (mode) {
+        case "home":
+          res.status(200).json({
+            currentPage,
+            totalPages,
+            totalItemCount,
+            data: finalData,
+          });
+          break;
+        case "delete":
+          res.status(200).json({
+            message: "삭제 모드로 전환되었습니다.",
+            currentPage,
+            totalPages,
+            totalItemCount,
+            data: finalData,
+          });
+          break;
+        case "move":
+          res.status(200).json({
+            message: "컬렉션 이동 모드로 전환되었습니다.",
+            currentPage,
+            totalPages,
+            totalItemCount,
+            data: finalData,
+          });
+          break;
+        default:
+          res.status(200).json({
+            currentPage,
+            totalPages,
+            totalItemCount,
+            data: finalData,
+          });
+        }
     }
 
-    // 페이지네이션 계산
-    const totalPages = Math.ceil(totalItemCount / limit);
-    const currentPage = Number(page) > totalPages ? totalPages : Number(page);
-    const skip = (currentPage - 1) * limit;
-
-    // 레퍼런스 조회
-    const data = await Reference.find({
-      ...collectionSearch,
-      ...filterSearch,
-    })
-      .skip(skip)
-      .limit(limit)
-      .sort(sort);
-
-    // 결과 데이터 변환
-    let finalData;
-    switch (view) {
-      case "card":
-        finalData = data.map((item) => ({
-          ...item.toObject(),
-          sharing: sharedList.includes(item.collectionId),
-        }));
-        break;
-      case "list":
-        finalData = data.map((item, index) => ({
-          ...item.toObject(),
-          number: skip + index + 1,
-        }));
-        break;
-      default:
-        finalData = data.map((item) => ({
-          ...item.toObject(),
-          sharing: sharedList.includes(item.collectionId),
-        }));
-        break;
-    }
-
-    res.status(201).json({
-      currentPage,
-      totalPages,
-      totalItemCount,
-      data: finalData,
-    });
+    
   } catch (error) {
     console.error("레퍼런스 조회 오류:", error.message);
     res
@@ -630,3 +668,37 @@ export const getReference = async (req, res) => {
       .json({ message: "레퍼런스 조회 중 오류가 발생했습니다.", error: error.message });
   }
 };
+
+// 레퍼런스 이동 모드 
+export const moveReferences = async (req, res) => {
+  try {
+    let { referenceIds, newCollection } = req.body;
+    const collection = await Collection.findOne({ title: newCollection });
+
+    if (!collection) {
+      res.status(404).json({ message: "컬렉션이 존재하지 않습니다."});
+    } else{
+      const collectionId = collection._id;
+      const updatedReferences = await Reference.updateMany(
+        { _id: { $in: referenceIds } }, 
+        { $set: { collectionId: collectionId } }
+      );
+    
+      res.status(200).json({ message: `레퍼런스를 이동하였습니다.`, updatedReferences });
+    }
+  } catch(error) {
+    console.log("레퍼런스 이동 모드 오류:", error.message);
+    res.status(500).json({ message: "레퍼런스 이동 모드에서 오류가 발생하였습니다.", error: error.message });
+  }
+}
+
+// 레퍼런스 삭제 모드 
+export const deleteReferences = async (req, res) => {
+  try {
+    const { referenceIds } = req.body;
+
+  } catch (err) {
+    console.log("레퍼런스 삭제 모드 오류:", error.message);
+    res.status(500).json({ message: "레퍼런스 삭제 모드에서 오류가 발생하였습니다.", error: error.message });
+  }
+}
