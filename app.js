@@ -7,7 +7,17 @@ import collectionRoutes from "./routes/collectionRoutes.js";
 import referenceRoutes from "./routes/referenceRoutes.js";
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://refhub.site'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+  maxAge: 86400
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -26,18 +36,6 @@ const errorHandler = (err, req, res, next) => {
 app.use("/api/users", userRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/references", referenceRoutes);
-
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://refhub.site'
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
-  maxAge: 86400
-}));
 
 app.get('/aws', (req, res) => {
   res.status(200).send('OK');
