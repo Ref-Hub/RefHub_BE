@@ -32,9 +32,19 @@ const validatePassword = check("password")
   .isLength({ min: 8, max: 12 })
   .withMessage("비밀번호는 8~12글자 이내로 입력할 수 있습니다.");
 
+const validateNewPassword = check("newPassword")
+.matches(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
+.withMessage("비밀번호는 영문(대/소문자), 숫자, 특수문자 2종류 이상의 조합으로 이루어져야 합니다.")
+.isLength({ min: 8, max: 12 })
+.withMessage("비밀번호는 8~12글자 이내로 입력할 수 있습니다.");
+  
 const validateConfirmPassword = check("confirmPassword")
   .custom((value, { req }) => value === req.body.password)
   .withMessage("비밀번호가 일치하지 않습니다.");
+
+const validateNewConfirmPassword = check("confirmPassword")
+.custom((value, { req }) => value === req.body.newPassword)
+.withMessage("비밀번호가 일치하지 않습니다.");
 
 const validateObjectId = (field) => {
   return check(field)
@@ -77,7 +87,9 @@ export default {
   validateEmail,
   validateName,
   validatePassword,
+  validateNewPassword,
   validateConfirmPassword,
+  validateNewConfirmPassword,
   validateObjectId,
   validateObjectIdArray,
   validateMiddleware,

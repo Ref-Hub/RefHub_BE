@@ -6,7 +6,7 @@ import { smtpTransport } from '../config/email.js';
 import jwt from 'jsonwebtoken';
 import validators from '../middlewares/validators.js';
 
-const { validateName, validateEmail, validatePassword, validateConfirmPassword, validateMiddleware } = validators;
+const { validateName, validateEmail, validatePassword, validateNewPassword, validateConfirmPassword,validateNewConfirmPassword, validateMiddleware } = validators;
 
 const appDir = path.resolve();
 
@@ -232,8 +232,8 @@ export const resetPasswordEmail = [
 
 // 비밀번호 재설정 함수
 export const resetPassword = [
-  validatePassword,
-  validateConfirmPassword,
+  validateNewPassword,
+  validateNewConfirmPassword,
   validateMiddleware,
   async (req, res) => {
     const { email, verificationCode, newPassword } = req.body;
