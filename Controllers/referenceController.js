@@ -1,6 +1,6 @@
 import Reference from "../models/reference.js";
 import Collection from "../models/Collection.js";
-import CollectionShare from "../models/collectionShare.js";
+import CollectionShare from "../models/CollectionShare.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import { getFileUrl } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
@@ -577,7 +577,7 @@ export const getReference = async (req, res) => {
       const skip = (currentPage - 1) * limit;
 
       // 레퍼런스 조회
-      const data = await Reference.find({
+      let data = await Reference.find({
         ...collectionSearch,
         ...filterSearch,
         collectionId: { $in: collectionIdList }
@@ -587,39 +587,31 @@ export const getReference = async (req, res) => {
         .sort(sort);
 
       // 결과 데이터 변환
-      let finalData;
+      let finalData = data.map((item, index) => {
+        const { memo, files, ...obj } = item.toObject();
+        let previewURLs = []
+        files.forEach(file => {
+          if (file.previewURLs && file.previewURLs.length > 0) {
+            previewURLs.push(...file.previewURLs);
+          }});
+        return {
+          ...obj,
+          number: skip + index + 1,
+          viewer: viewerList.includes(item.collectionId),
+          editor: editorList.includes(item.collectionId),
+          previewURLs: previewURLs.slice(0,4)
+        };
+      });
 
       switch (view) {
         case "card":
-          finalData = data.map((item) => {
-            const { memo, ...obj } = item.toObject();
-            return {
-              ...obj,
-              viewer: viewerList.includes(item.collectionId),
-              editor: editorList.includes(item.collectionId)
-            };
-          });
+          finalData = finalData.map(({ number, ...rest }) => rest);
           break;
         case "list":
-          finalData = data.map((item, index) => {
-            const { memo, files, ...obj } = item.toObject();
-            return {
-              ...obj,
-              number: skip + index + 1,
-              viewer: viewerList.includes(item.collectionId),
-              editor: editorList.includes(item.collectionId)
-            };
-          });
+          finalData = finalData.map(({ previewURLs, ...rest }) => rest);
           break;
         default:
-          finalData = data.map((item) => {
-            const { memo, ...obj } = item.toObject();
-            return {
-              ...obj,
-              viewer: viewerList.includes(item.collectionId),
-              editor: editorList.includes(item.collectionId)
-            };
-          });
+          finalData = finalData.map(({ number, ...rest }) => rest);
           break;
       }
 
@@ -662,10 +654,7 @@ export const getReference = async (req, res) => {
 
     
   } catch (error) {
-    console.error("레퍼런스 조회 오류:", error.message);
-    res
-      .status(500)
-      .json({ message: "레퍼런스 조회 중 오류가 발생했습니다.", error: error.message });
+    res.status(500).json({ message: "레퍼런스 조회 중 오류가 발생했습니다." });
   }
 };
 
@@ -684,11 +673,10 @@ export const moveReferences = async (req, res) => {
         { $set: { collectionId: collectionId } }
       );
     
-      res.status(200).json({ message: `레퍼런스를 이동하였습니다.`, updatedReferences });
+      res.status(200).json({ message: `레퍼런스를 이동하였습니다.`});
     }
   } catch(error) {
-    console.log("레퍼런스 이동 모드 오류:", error.message);
-    res.status(500).json({ message: "레퍼런스 이동 모드에서 오류가 발생하였습니다.", error: error.message });
+    res.status(500).json({ message: "레퍼런스 이동 모드에서 오류가 발생하였습니다." });
   }
 }
 

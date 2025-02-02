@@ -24,7 +24,9 @@ const referenceSchema = new mongoose.Schema({
     },
   ],
   createdAt: { type: Date, default: Date.now },
-});
+},
+  { versionKey: false }
+);
 
 function keywordsValidation(keywords) {
   return keywords.every((kw) => kw.length <= 15);
