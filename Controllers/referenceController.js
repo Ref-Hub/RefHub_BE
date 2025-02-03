@@ -686,10 +686,16 @@ export const deleteReferences = async (req, res) => {
   try {
     const { referenceIds } = req.body;
 
+    for (const id of referenceIds) {
+      if (mongoose.Types.ObjectId.isValid(id) == false){
+        return res.status(400).json({ message: "레퍼런스의 Id 형식이 올바르지 않습니다."})
+      }
+    }
+
     // 레퍼런스 찾기
     const references = await Reference.find({ _id: { $in: referenceIds } });
-    if (!references) {
-      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    if (references.length !== referenceIds.length) {
+      return res.status(404).json({ message: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
     const db = mongoose.connection.db; // MongoDB 연결 객체
@@ -714,8 +720,8 @@ export const deleteReferences = async (req, res) => {
                 console.warn(`유효하지 않은 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
               }
             }
-          } catch (err) {
-            console.error(`파일 삭제 실패: ${file.path}`, err.message);
+          } catch (error) {
+            console.error(`파일 삭제 실패: ${file.path}`, error.message);
           }
         } else if (file.type === "image") {
           try {
@@ -731,8 +737,8 @@ export const deleteReferences = async (req, res) => {
                 console.warn(`유효하지 않은 이미지 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
               }
             }
-          } catch (err) {
-            console.error(`이미지 파일 삭제 실패: ${file.images}`, err.message);
+          } catch (error) {
+            console.error(`이미지 파일 삭제 실패: ${file.images}`, error.message);
           }
         }
       }
@@ -741,8 +747,8 @@ export const deleteReferences = async (req, res) => {
     await Reference.deleteMany({ _id: { $in: referenceIds } });
     res.status(200).json({ message: "삭제가 완료되었습니다." });
 
-  } catch (err) {
+  } catch (error) {
     console.log("레퍼런스 삭제 모드 오류:", error.message);
-    res.status(500).json({ message: "레퍼런스 삭제 모드에서 오류가 발생하였습니다.", error: error.message });
+    res.status(500).json({ message: "레퍼런스 삭제 모드에서 오류가 발생하였습니다." });
   }
 }
