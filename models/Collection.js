@@ -7,7 +7,6 @@ const collSchema = new mongoose.Schema(
       required: true,
       maxLength: 20,
     },
-    isFavorite: { type: Boolean, default: false },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
