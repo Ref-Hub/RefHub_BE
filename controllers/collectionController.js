@@ -1,26 +1,52 @@
 import { StatusCodes } from "http-status-codes";
 import Collection from "../models/Collection.js";
 import Reference from "../models/Reference.js";
+import CollectionFavorite from "../models/CollectionFavorite.js";
+import CollectionShare from "../models/CollectionShare.js";
 import { MongoError } from "mongodb";
 
 // 컬렉션 생성
 const createCollection = async (req, res, next) => {
   try {
     const { title } = req.body;
-    const createdBy = req.user.id;
+    const user = req.user.id;
 
-    const coll = await Collection.create({
+    // 공유 중인 컬렉션 검사
+    const sharedCollection = await CollectionShare.find({
+      userId: user,
+    }).lean();
+
+    const sharedTitles = await Promise.all(
+      sharedCollection.map(async (share) => {
+        const collection = await Collection.findById(share.collectionId).lean();
+        return collection ? collection.title : null;
+      })
+    )
+
+    if (sharedTitles.includes(title)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "공유 중인 컬렉션과 중복된 이름입니다.",
+      });
+    }
+
+    // 생성한 컬렉션 검사
+    const collExists = await Collection.findOne({
       title: title,
-      createdBy: createdBy,
+      createdBy: user,
     });
-    res.status(StatusCodes.CREATED).json(coll);
-  } catch (err) {
-    if (err instanceof MongoError && err.code === 11000) {
-      res.status(StatusCodes.BAD_REQUEST).json({
+    if (collExists) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
         error: "중복된 이름입니다.",
       });
-      return;
     }
+
+    // 컬렉션 생성
+    const coll = await Collection.create({
+      title: title,
+      createdBy: user,
+    });
+    return res.status(StatusCodes.CREATED).json(coll);
+  } catch (err) {
     next(err);
   }
 };
@@ -30,7 +56,38 @@ const getCollection = async (req, res, next) => {
   try {
     const { page = 1, sortBy = "latest", search = "" } = req.query;
     const pageSize = 15;
-    const createdBy = req.user.id;
+    const user = req.user.id;
+
+    // 검색 조건 설정
+    const searchCondition = search
+      ? { title: { $regex: search, $options: "i" } }
+      : {};
+
+    // 컬렉션 전체 개수 및 메시지 전달
+    const myColletions = await Collection.find({
+      ...searchCondition,
+      createdBy: user,
+    }).lean();
+
+    const sharedColletions = await CollectionShare.find({
+      userId: user,
+    }).distinct("collectionId");
+
+    const sharedCollectionData = await Collection.find({
+      ...searchCondition,
+      _id: { $in: sharedColletions },
+    }).lean();
+
+    const allCollections = [...myColletions, ...sharedCollectionData];
+    const totalItemCount = allCollections.length;
+
+    if (totalItemCount === 0) {
+      return res.status(StatusCodes.OK).json({
+        message: search
+          ? "검색 결과가 없어요. 다른 검색어로 시도해보세요!"
+          : "아직 생성된 컬렉션이 없어요. 새 컬렉션을 만들어 정리를 시작해보세요!",
+      });
+    }
 
     // 페이지 유효성 검사
     const parsedPage = parseInt(page, 10);
@@ -38,71 +95,87 @@ const getCollection = async (req, res, next) => {
 
     // 조건 필터링
     const sortOptions = {
-      latest: { isFavorite: -1, createdAt: -1 },
-      oldest: { isFavorite: -1, createdAt: 1 },
-      sortAsc: { isFavorite: -1, title: 1 },
-      sortDesc: { isFavorite: -1, title: -1 },
+      latest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      sortAsc: { title: 1 },
+      sortDesc: { title: -1 },
     };
     const sort = sortOptions[sortBy] || sortOptions.latest;
-
-    const searchCondition = search
-      ? { title: { $regex: search, $options: "i" } }
-      : {};
-
-    // 컬렉션 전체 개수 및 오류 
-    const totalItemCount = await Collection.countDocuments({
-      ...searchCondition,
-      $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
-    });
-
-    if (totalItemCount === 0) {
-      if (search === "") {
-        return res.status(StatusCodes.OK).json({
-          message:
-            "아직 생성된 컬렉션이 없어요. 새 컬렉션을 만들어 정리를 시작해보세요!",
-        });
-      } else {
-        return res.status(StatusCodes.OK).json({
-          message: "검색 결과가 없어요. 다른 검색어로 시도해보세요!",
-        });
-      }
-    }
 
     const totalPages = Math.ceil(totalItemCount / pageSize);
     const currentPage = Math.min(validPage, totalPages);
     const skip = (currentPage - 1) * pageSize;
 
     // 컬렉션 페이지네이션
-    const data = await Collection.find({
-      ...searchCondition,
-      $or: [{ createdBy: createdBy }, { "sharedWith.userId": createdBy }],
-    })
-      .skip(skip)
-      .limit(pageSize)
-      .sort(sort);
+    const paginatedCollections = allCollections
+      .sort(
+        (a, b) =>
+          sort[Object.keys(sort)[0]] *
+          (a[Object.keys(sort)[0]] > b[Object.keys(sort)[0]] ? 1 : -1)
+      )
+      .slice(skip, skip + pageSize);
+
+    const collectionFavorites = await CollectionFavorite.find({
+      userId: user,
+      collectionId: { $in: paginatedCollections.map((item) => item._id) },
+    }).lean();
+
+    const references = await Reference.find({
+      collectionId: { $in: paginatedCollections.map((item) => item._id) },
+    }).lean();
+
+    const checkIfShared = async (collectionId) => {
+      const sharedExists = await CollectionShare.exists({ collectionId });
+      return sharedExists ? true : false;
+    };
 
     // 반환 데이터 재구성
     const modifiedData = await Promise.all(
-      data.map(async (item) => {
-        const refCount = await Reference.countDocuments({
-          collectionId: item._id,
+      paginatedCollections.map(async (item) => {
+        // 즐겨찾기 여부
+        const isFavorite = collectionFavorites.some(
+          (favorite) =>
+            favorite.collectionId.toString() === item._id.toString() &&
+            favorite.isFavorite
+        );
+
+        // 참조 수
+        const refCount = references.filter(
+          (ref) => ref.collectionId.toString() === item._id.toString()
+        ).length;
+
+        // 프리뷰 이미지
+        const limit = Math.max(Math.min(refCount, 4), 0);
+        const relevantReferences = references
+          .filter((ref) => ref.collectionId.toString() === item._id.toString())
+          .slice(0, limit);
+
+        const previewImages = relevantReferences.map((reference) => {
+          const file = reference.files.find(
+            (file) => file.type === "image" || reference.files[0]
+          );
+          return file ? file.previewURLs?.[0] || file.previewURL : null;
         });
-        item.refCount = refCount;
+
+        // 공유된 컬렉션인지 확인
+        const isShared = await checkIfShared(item._id);
+
         return {
           _id: item._id,
           title: item.title,
-          isFavorite: item.isFavorite,
+          isFavorite: isFavorite,
+          isShared: isShared,
           createdBy: item.createdBy,
-          sharedWith: item.sharedWith,
           createdAt: item.createdAt,
-          refCount: item.refCount,
-          // image: item.image, // 필요 시 추가
+          refCount: refCount,
+          previewImages: previewImages,
         };
       })
     );
+    modifiedData.sort((a, b) => b.isFavorite - a.isFavorite);
 
-    res.status(StatusCodes.OK).json({
-      currentPage,
+    return res.status(StatusCodes.OK).json({
+      currentPage: validPage,
       totalPages,
       totalItemCount,
       data: modifiedData,
@@ -114,22 +187,48 @@ const getCollection = async (req, res, next) => {
 
 // 컬렉션 수정
 const updateCollection = async (req, res, next) => {
+  const { collectionId } = req.params;
+  const { title } = req.body;
+  const user = req.user.id;
+
   try {
-    const { collectionId } = req.params;
-    const { title } = req.body;
+    // 공유 중인 컬렉션 검사
+    const sharedCollection = await CollectionShare.find({
+      userId: user,
+    }).lean();
+
+    const sharedTitles = await Promise.all(
+      sharedCollection.map(async (share) => {
+        const collection = await Collection.findById(share.collectionId).lean();
+        return collection ? collection.title : null;
+      })
+    );
+
+    if (sharedTitles.includes(title)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "공유 중인 컬렉션과 중복된 이름입니다.",
+      });
+    }
+
+    // 컬렉션 수정
     const coll = await Collection.findOneAndUpdate(
-      { _id: collectionId },
+      { _id: collectionId, createdBy: user },
       { $set: { title: title } },
       { new: true, runValidators: true }
     );
 
-    res.status(StatusCodes.OK).json(coll);
+    if (!coll) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "존재하지 않습니다.",
+      });
+    }
+
+    return res.status(StatusCodes.OK).json(coll);
   } catch (err) {
     if (err instanceof MongoError && err.code === 11000) {
-      res.status(StatusCodes.BAD_REQUEST).json({
+      return res.status(StatusCodes.BAD_REQUEST).json({
         error: "중복된 이름입니다.",
       });
-      return;
     }
     next(err);
   }
@@ -137,31 +236,39 @@ const updateCollection = async (req, res, next) => {
 
 // 컬렉션 삭제 (삭제모드 포함)
 const deleteCollection = async (req, res, next) => {
+  const { collectionIds } = req.body;
+  const createdBy = req.user.id;
+
   try {
-    const { collectionIds } = req.body;
-    const coll = await Collection.deleteMany({
+    // 생성자인지 확인
+    const collections = await Collection.find({
       _id: { $in: collectionIds },
+      createdBy: createdBy,
     });
 
-    if (
-      !collectionIds ||
-      !Array.isArray(collectionIds) ||
-      collectionIds.length === 0
-    ) {
-      res
-        .status(StatusCodes.BAD_REQUEST)
-        .json({ error: "선택한 컬렉션이 없습니다." });
-      return;
-    }
-
-    if (coll.deletedCount === 0) {
-      res.status(StatusCodes.NOT_FOUND).json({
+    if (collections.length === 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
-      return;
     }
 
-    res.status(StatusCodes.OK).json({ message: "삭제가 완료되었습니다." });
+    // 컬렉션 참조 문서 + 컬렉션 삭제
+    await CollectionFavorite.deleteMany({
+      collectionId: { $in: collections.map((item) => item._id) },
+    });
+    await CollectionShare.deleteMany({
+      collectionId: { $in: collections.map((item) => item._id) },
+    });
+    await Reference.deleteMany({
+      collectionId: { $in: collections.map((item) => item._id) },
+    });
+    await Collection.deleteMany({
+      _id: { $in: collections.map((item) => item._id) },
+    });
+
+    return res
+      .status(StatusCodes.OK)
+      .json({ message: "삭제가 완료되었습니다." });
   } catch (err) {
     next(err);
   }
@@ -169,25 +276,46 @@ const deleteCollection = async (req, res, next) => {
 
 // 컬렉션 즐겨찾기
 const toggleFavorite = async (req, res, next) => {
+  const { collectionId } = req.params;
+  const createdBy = req.user.id;
+
   try {
-    const { collectionId } = req.params;
     const coll = await Collection.findById(collectionId);
 
     if (!coll) {
-      res.status(StatusCodes.NOT_FOUND).json({ error: "존재하지 않습니다." });
-      return;
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ error: "존재하지 않습니다." });
     }
 
-    coll.isFavorite = !coll.isFavorite;
-    const updatedCollection = await coll.save();
-    const message = updatedCollection.isFavorite
-      ? "컬렉션 즐겨찾기 등록 성공"
-      : "컬렉션 즐겨찾기 해제 성공";
-
-    res.status(StatusCodes.OK).json({
-      message: message,
-      data: `${updatedCollection.isFavorite}`,
+    let favorite = await CollectionFavorite.findOne({
+      userId: createdBy,
+      collectionId: collectionId,
     });
+
+    if (!favorite) {
+      // 즐겨찾기 정보 없음 → 새 문서 생성 (즐겨찾기 추가)
+      const favorite = new CollectionFavorite({
+        userId: createdBy,
+        collectionId: collectionId,
+        isFavorite: true,
+      });
+      await favorite.save();
+      return res.status(StatusCodes.OK).json({
+        message: "컬렉션 즐겨찾기 등록 성공",
+        data: true,
+      });
+    } else {
+      // 즐겨찾기 정보 있음 → 업데이트
+      favorite.isFavorite = !favorite.isFavorite;
+      await favorite.save();
+      return res.status(StatusCodes.OK).json({
+        message: favorite.isFavorite
+          ? "컬렉션 즐겨찾기 등록 성공"
+          : "컬렉션 즐겨찾기 해제 성공",
+        data: favorite.isFavorite,
+      });
+    }
   } catch (err) {
     next(err);
   }
