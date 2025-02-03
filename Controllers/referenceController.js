@@ -402,6 +402,7 @@ export const deleteReference = async (req, res) => {
 
     // 레퍼런스 찾기
     const reference = await Reference.findById(referenceId);
+    console.log(reference);
     if (!reference) {
       return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
@@ -453,7 +454,7 @@ export const deleteReference = async (req, res) => {
     // 레퍼런스 삭제
     await Reference.findByIdAndDelete(referenceId);
 
-    res.status(200).json({ message: "레퍼런스가 성공적으로 삭제되었습니다." });
+    res.status(200).json({ message: "삭제가 완료되었습니다." });
   } catch (err) {
     console.error("Error deleting reference:", err.message);
     res.status(500).json({ error: "레퍼런스를 삭제하는 중 오류가 발생했습니다." });
@@ -684,6 +685,61 @@ export const moveReferences = async (req, res) => {
 export const deleteReferences = async (req, res) => {
   try {
     const { referenceIds } = req.body;
+
+    // 레퍼런스 찾기
+    const references = await Reference.find({ _id: { $in: referenceIds } });
+    if (!references) {
+      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    }
+
+    const db = mongoose.connection.db; // MongoDB 연결 객체
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
+
+    // 첨부 자료 삭제 
+    for ( const reference of references) {
+      for (const file of reference.files) {
+        console.log("파일 데이터:", file); // 각 file 객체 출력
+        if (file.type === "file" || file.type === "pdf") {
+          try {
+            // path 값을 콤마로 분리하여 각각의 ID 처리
+            const objectIds = file.path.split(",").map((id) => id.trim()); // 콤마로 구분된 ID를 배열로 변환
+
+            for (const id of objectIds) {
+              if (mongoose.Types.ObjectId.isValid(id)) {
+                // ID가 유효한 ObjectId인지 확인
+                const objectId = new mongoose.Types.ObjectId(id);
+                await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
+                console.log(`기존 파일 삭제 완료: ${id}`);
+              } else {
+                console.warn(`유효하지 않은 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+              }
+            }
+          } catch (err) {
+            console.error(`파일 삭제 실패: ${file.path}`, err.message);
+          }
+        } else if (file.type === "image") {
+          try {
+            console.log("이미지 파일 ID 배열:", file.images);
+            // file.images 배열을 순회하여 각각의 ID 처리
+            for (const id of file.images) {
+              if (mongoose.Types.ObjectId.isValid(id)) {
+                // ID가 유효한 ObjectId인지 확인
+                const objectId = new mongoose.Types.ObjectId(id);
+                await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
+                console.log(`기존 이미지 파일 삭제 완료: ${id}`);
+              } else {
+                console.warn(`유효하지 않은 이미지 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+              }
+            }
+          } catch (err) {
+            console.error(`이미지 파일 삭제 실패: ${file.images}`, err.message);
+          }
+        }
+      }
+    }
+    // 레퍼런스 삭제
+    await Reference.deleteMany({ _id: { $in: referenceIds } });
+    res.status(200).json({ message: "삭제가 완료되었습니다." });
 
   } catch (err) {
     console.log("레퍼런스 삭제 모드 오류:", error.message);
