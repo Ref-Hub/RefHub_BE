@@ -13,23 +13,6 @@ const collSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    sharedWith: {
-      type: [
-        {
-          userId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-          },
-          role: {
-            type: String,
-            enum: ["viewer", "editor"],
-            default: "viewer",
-          },
-        },
-      ],
-      default: [], // 기본적으로 빈 배열
-    },
     createdAt: { type: Date, default: () => Date.now() },
   },
   { versionKey: false }
