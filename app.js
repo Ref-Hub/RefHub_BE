@@ -12,7 +12,9 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://refhub.site',
-    'https://api.refhub.site'
+    'https://api.refhub.site',
+    'https://www.refhub.my',
+    'https://refhub.vercel.app'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
