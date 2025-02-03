@@ -38,5 +38,7 @@ const collSchema = new mongoose.Schema(
 // Index 설정 (createdBy와 title의 조합을 유니크로 설정)
 collSchema.index({ createdBy: 1, title: 1 }, { unique: true });
 
-const Collection = mongoose.model("Collection", collSchema, "collections");
+const Collection =
+  mongoose.models.Collection ||
+  mongoose.model("Collection", collSchema, "collections");
 export default Collection;

@@ -12,6 +12,10 @@ const collectionFavoriteSchema = new mongoose.Schema(
       required: true,
       ref: "Collection",
     },
+    isFavorite: {
+      type: Boolean,
+      default: true,
+    },
   },
   { versionKey: false }
 );
@@ -21,10 +25,12 @@ collectionFavoriteSchema.index(
   { unique: true }
 );
 
-const CollectionFavorite = mongoose.model(
-  "CollectionFavorite",
-  collectionFavoriteSchema,
-  "collectionFavorites"
-);
+const CollectionFavorite =
+  mongoose.models.CollectionFavorite ||
+  mongoose.model(
+    "CollectionFavorite",
+    collectionFavoriteSchema,
+    "collectionFavorites"
+  );
 
 export default CollectionFavorite;
