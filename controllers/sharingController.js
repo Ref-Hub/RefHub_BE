@@ -1,9 +1,11 @@
 import { StatusCodes } from "http-status-codes";
 import Collection from "../models/Collection.js";
 import User from "../models/User.js";
-import { smtpTransport } from '../config/email.js';
+import CollectionShare from "../models/CollectionShare.js";
+import { smtpTransport } from "../config/email.js";
 import path from "path";
 import ejs from "ejs";
+import CollectionFavorite from "../models/CollectionFavorite.js";
 
 const appDir = path.resolve();
 
@@ -45,19 +47,26 @@ const sendEmail = async (
 
 // 컬렉션 나만 보기
 const setPrivate = async (req, res, next) => {
+  const collectionId = req.params.collectionId;
+  const user = req.user.id;
+
   try {
-    const coll = await Collection.findById(req.params.collectionId);
+    // 본인의 컬렉션인지 확인
+    const coll = await Collection.findOne({
+      _id: collectionId,
+      createdBy: user,
+    }).lean();
 
     if (!coll) {
-      res.status(StatusCodes.NOT_FOUND).json({
+      return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
-      return;
     }
 
-    coll.set("sharedWith", []);
-    await coll.save();
-    res.status(StatusCodes.OK).json(coll);
+    // 공유 정보 삭제
+    await CollectionFavorite.deleteMany({ collectionId });
+    await CollectionShare.deleteMany({ collectionId });
+    return res.status(StatusCodes.OK).json({ message: "나만 보기 설정 완료" });
   } catch (err) {
     next(err);
   }
@@ -65,20 +74,37 @@ const setPrivate = async (req, res, next) => {
 
 // 공유 사용자 조회
 const getSharedUsers = async (req, res, next) => {
+  const collectionId = req.params.collectionId;
+  const user = req.user.id;
+
   try {
-    const coll = await Collection.findById(req.params.collectionId).populate(
-      "sharedWith.userId",
-      "name email"
-    );
+    const coll = await Collection.findById(collectionId);
 
     if (!coll) {
-      res.status(StatusCodes.NOT_FOUND).json({
-        error: "존재하지 않습니다.",
-      });
-      return;
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ error: "존재하지 않습니다." });
     }
 
-    res.status(StatusCodes.OK).json(coll.sharedWith);
+    // 생성자 & 공유자 확인
+    const isOwner = coll.createdBy.toString() === user;
+    const isSharedUser = await CollectionShare.findOne({
+      collectionId: collectionId,
+      userId: user,
+    }).lean();
+
+    // 둘 다 아님
+    if (!isOwner && isSharedUser === null) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "존재하지 않습니다.",
+      });
+    }
+
+    const sharing = await CollectionShare.find({ collectionId })
+      .populate("userId", "name email")
+      .lean();
+
+    return res.status(StatusCodes.OK).json(sharing);
   } catch (err) {
     next(err);
   }
@@ -86,15 +112,20 @@ const getSharedUsers = async (req, res, next) => {
 
 // 공유 사용자 추가 및 메일 발송
 const updateSharedUsers = async (req, res, next) => {
+  const collectionId = req.params.collectionId;
+  const createdBy = req.user.id;
+  const { email, role } = req.body;
+
   try {
-    const { email, role } = req.body;
-    const coll = await Collection.findById(req.params.collectionId);
+    const coll = await Collection.findOne({
+      _id: collectionId,
+      createdBy: createdBy,
+    });
 
     if (!coll) {
-      res.status(StatusCodes.NOT_FOUND).json({
+      return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
-      return;
     }
 
     // 유저가 없으면 새로 추가
@@ -106,26 +137,30 @@ const updateSharedUsers = async (req, res, next) => {
 
     // 본인에게 공유 시 에러
     if (user._id.toString() === coll.createdBy.toString()) {
-      res
+      return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ error: "본인에게 공유할 수 없습니다." }); // 추가
-      return;
     }
 
     // 이미 공유되고 있는지 확인
-    const existingUser = coll.sharedWith.find(
-      (sharedUser) => sharedUser.userId.toString() === user._id.toString()
-    );
+    const existingUser = await CollectionShare.findOne({
+      collectionId: collectionId,
+      userId: user._id,
+    });
 
-    // 공유 중이라면 수정
+    // 공유 중이라면 역할 수정
     if (existingUser) {
       existingUser.role = role;
-      await coll.save();
-      res.status(StatusCodes.OK).json({ message: "사용자 수정 성공" });
+      await existingUser.save();
+      return res.status(StatusCodes.OK).json({ message: "사용자 수정 성공" });
     } else {
-    // 공유 중이 아니라면 추가
-      coll.sharedWith.push({ userId: user?._id, role });
-      await coll.save();
+      // 공유 중이 아니라면 추가
+      const newShare = new CollectionShare({
+        collectionId: collectionId,
+        userId: user._id,
+        role: role,
+      });
+      await newShare.save();
 
       const [owner, invited] = await Promise.all([
         User.findById(coll.createdBy),
@@ -136,7 +171,7 @@ const updateSharedUsers = async (req, res, next) => {
       const invitedName =
         invited?.name === "" ? email.split("@")[0] : invited?.name;
       const collectionName = coll.title;
-      const link = `https://refub.com/collections/${coll._id}`; // 수정 필요
+      const link = `https://test.com/collections/${coll._id}`; // 수정 필요
 
       // 메일 발송
       try {
@@ -155,32 +190,39 @@ const updateSharedUsers = async (req, res, next) => {
   }
 };
 
-// 공유 사용자 삭제
+// 공유 사용자 삭제 (컬렉션 나가기)
 const deleteSharedUser = async (req, res, next) => {
+  const { collectionId, userId } = req.params;
+  const user = req.user.id;
+
   try {
-    const { collectionId, userId } = req.params;
-    const coll = await Collection.findById(collectionId);
+    const coll = await Collection.findById(collectionId).lean();
+
+    // 찾을 수 없거나 권한 없음
     if (!coll) {
-      res.status(StatusCodes.NOT_FOUND).json({
+      return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
-      return;
     }
 
-    const userIndex = coll.sharedWith.findIndex(
-      (user) => user.userId.toString() === userId
-    );
+    // 생성자 & 공유자 확인
+    const isOwner = coll.createdBy.toString() === user;
+    const sharing = await CollectionShare.findOne({
+      collectionId,
+      userId,
+    }).lean();
+    const isSharedUser = sharing && sharing.userId.toString() === user;
 
-    if (userIndex === -1) {
-      res.status(StatusCodes.NOT_FOUND).json({
+    // 둘 다 아님
+    if (!isOwner && !isSharedUser) {
+      return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
-      return;
     }
 
-    coll.sharedWith.splice(userIndex, 1);
-    await coll.save();
-    res.status(StatusCodes.OK).json({
+    await CollectionFavorite.deleteOne({ collectionId, userId });
+    await CollectionShare.deleteOne({ collectionId, userId });
+    return res.status(StatusCodes.OK).json({
       message: "사용자 삭제 완료",
     });
   } catch (err) {
