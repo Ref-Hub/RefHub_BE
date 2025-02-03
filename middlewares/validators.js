@@ -31,7 +31,7 @@ const validateObjectIdArray = (field) => {
     .isArray()
     .withMessage(`${field}는 배열 형식어야 합니다.`)
     .notEmpty()
-    .withMessage("값이 없습니다.")
+    .withMessage("선택한 컬렉션이 없습니다.")
     .custom((value) => {
       if (Array.isArray(value)) {
         const isValid = value.every((item) => /^[0-9a-fA-F]{24}$/.test(item));
