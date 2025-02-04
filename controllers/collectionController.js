@@ -11,7 +11,7 @@ const createCollection = async (req, res, next) => {
     const { title } = req.body;
     const user = req.user.id;
 
-    // 공유 중인 컬렉션 검사
+    // 공유 받은 컬렉션 검사
     const sharedCollection = await CollectionShare.find({
       userId: user,
     }).lean();
@@ -21,31 +21,30 @@ const createCollection = async (req, res, next) => {
         const collection = await Collection.findById(share.collectionId).lean();
         return collection ? collection.title : null;
       })
-    )
-
+    );
     if (sharedTitles.includes(title)) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "공유 중인 컬렉션과 중복된 이름입니다.",
       });
     }
 
-    // 생성한 컬렉션 검사
-    const collExists = await Collection.findOne({
+    // 생성했던 컬렉션 검사
+    const collectionExists = await Collection.exists({
       title: title,
       createdBy: user,
     });
-    if (collExists) {
+    if (collectionExists) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "중복된 이름입니다.",
       });
     }
 
     // 컬렉션 생성
-    const coll = await Collection.create({
+    const collection = await Collection.create({
       title: title,
       createdBy: user,
     });
-    return res.status(StatusCodes.CREATED).json(coll);
+    return res.status(StatusCodes.CREATED).json(collection);
   } catch (err) {
     next(err);
   }
@@ -172,6 +171,7 @@ const getCollection = async (req, res, next) => {
         };
       })
     );
+    // 즐겨찾기 여부 기준 정렬
     modifiedData.sort((a, b) => b.isFavorite - a.isFavorite);
 
     return res.status(StatusCodes.OK).json({
@@ -211,19 +211,19 @@ const updateCollection = async (req, res, next) => {
     }
 
     // 컬렉션 수정
-    const coll = await Collection.findOneAndUpdate(
+    const collection = await Collection.findOneAndUpdate(
       { _id: collectionId, createdBy: user },
       { $set: { title: title } },
       { new: true, runValidators: true }
     );
 
-    if (!coll) {
+    if (!collection) {
       return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
     }
 
-    return res.status(StatusCodes.OK).json(coll);
+    return res.status(StatusCodes.OK).json(collection);
   } catch (err) {
     if (err instanceof MongoError && err.code === 11000) {
       return res.status(StatusCodes.BAD_REQUEST).json({
@@ -237,14 +237,14 @@ const updateCollection = async (req, res, next) => {
 // 컬렉션 삭제 (삭제모드 포함)
 const deleteCollection = async (req, res, next) => {
   const { collectionIds } = req.body;
-  const createdBy = req.user.id;
+  const user = req.user.id;
 
   try {
     // 생성자인지 확인
     const collections = await Collection.find({
       _id: { $in: collectionIds },
-      createdBy: createdBy,
-    });
+      createdBy: user,
+    }).lean();
 
     if (collections.length === 0) {
       return res.status(StatusCodes.NOT_FOUND).json({
@@ -252,19 +252,22 @@ const deleteCollection = async (req, res, next) => {
       });
     }
 
-    // 컬렉션 참조 문서 + 컬렉션 삭제
-    await CollectionFavorite.deleteMany({
-      collectionId: { $in: collections.map((item) => item._id) },
-    });
-    await CollectionShare.deleteMany({
-      collectionId: { $in: collections.map((item) => item._id) },
-    });
-    await Reference.deleteMany({
-      collectionId: { $in: collections.map((item) => item._id) },
-    });
-    await Collection.deleteMany({
-      _id: { $in: collections.map((item) => item._id) },
-    });
+    // 컬렉션 연관 문서 삭제
+    const collectionIdsToDelete = collections.map((item) => item._id);
+    await Promise.all([
+      Reference.deleteMany({
+        collectionId: { $in: collectionIdsToDelete },
+      }),
+      CollectionShare.deleteMany({
+        collectionId: { $in: collectionIdsToDelete },
+      }),
+      CollectionFavorite.deleteMany({
+        collectionId: { $in: collectionIdsToDelete },
+      }),
+      Collection.deleteMany({
+        _id: { $in: collectionIdsToDelete },
+      }),
+    ]);
 
     return res
       .status(StatusCodes.OK)
@@ -277,26 +280,27 @@ const deleteCollection = async (req, res, next) => {
 // 컬렉션 즐겨찾기
 const toggleFavorite = async (req, res, next) => {
   const { collectionId } = req.params;
-  const createdBy = req.user.id;
+  const user = req.user.id;
 
   try {
-    const coll = await Collection.findById(collectionId);
-
-    if (!coll) {
+    // 존재 여부 확인
+    const collection = await Collection.findById(collectionId).lean();
+    if (!collection) {
       return res
         .status(StatusCodes.NOT_FOUND)
         .json({ error: "존재하지 않습니다." });
     }
 
+    // 즐겨찾기에 정보 있는지 확인
     let favorite = await CollectionFavorite.findOne({
-      userId: createdBy,
+      userId: user,
       collectionId: collectionId,
     });
 
     if (!favorite) {
       // 즐겨찾기 정보 없음 → 새 문서 생성 (즐겨찾기 추가)
       const favorite = new CollectionFavorite({
-        userId: createdBy,
+        userId: user,
         collectionId: collectionId,
         isFavorite: true,
       });
