@@ -52,20 +52,22 @@ const setPrivate = async (req, res, next) => {
 
   try {
     // 본인의 컬렉션인지 확인
-    const coll = await Collection.findOne({
+    const collection = await Collection.findOne({
       _id: collectionId,
       createdBy: user,
     }).lean();
 
-    if (!coll) {
+    if (!collection) {
       return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
     }
 
-    // 공유 정보 삭제
-    await CollectionFavorite.deleteMany({ collectionId });
-    await CollectionShare.deleteMany({ collectionId });
+    // 공유 + 즐겨찾기 문서 삭제
+    await Promise.all([
+      CollectionFavorite.deleteMany({ collectionId }),
+      CollectionShare.deleteMany({ collectionId }),
+    ]);
     return res.status(StatusCodes.OK).json({ message: "나만 보기 설정 완료" });
   } catch (err) {
     next(err);
@@ -78,16 +80,16 @@ const getSharedUsers = async (req, res, next) => {
   const user = req.user.id;
 
   try {
-    const coll = await Collection.findById(collectionId);
+    const collection = await Collection.findById(collectionId);
 
-    if (!coll) {
+    if (!collection) {
       return res
         .status(StatusCodes.NOT_FOUND)
         .json({ error: "존재하지 않습니다." });
     }
 
     // 생성자 & 공유자 확인
-    const isOwner = coll.createdBy.toString() === user;
+    const isOwner = collection.createdBy.toString() === user;
     const isSharedUser = await CollectionShare.findOne({
       collectionId: collectionId,
       userId: user,
@@ -113,30 +115,30 @@ const getSharedUsers = async (req, res, next) => {
 // 공유 사용자 추가 및 메일 발송
 const updateSharedUsers = async (req, res, next) => {
   const collectionId = req.params.collectionId;
-  const createdBy = req.user.id;
+  const user = req.user.id;
   const { email, role } = req.body;
 
   try {
-    const coll = await Collection.findOne({
+    const collection = await Collection.findOne({
       _id: collectionId,
-      createdBy: createdBy,
+      createdBy: user,
     });
 
-    if (!coll) {
+    if (!collection) {
       return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
     }
 
     // 유저가 없으면 새로 추가
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = new User({ email, name: "", role: "viewer" });
-      await user.save();
+    let newUser = await User.findOne({ email });
+    if (!newUser) {
+      newUser = new User({ email, name: "", role: "viewer" });
+      await newUser.save();
     }
 
     // 본인에게 공유 시 에러
-    if (user._id.toString() === coll.createdBy.toString()) {
+    if (newUser._id.toString() === collection.createdBy.toString()) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ error: "본인에게 공유할 수 없습니다." }); // 추가
@@ -145,7 +147,7 @@ const updateSharedUsers = async (req, res, next) => {
     // 이미 공유되고 있는지 확인
     const existingUser = await CollectionShare.findOne({
       collectionId: collectionId,
-      userId: user._id,
+      userId: newUser._id,
     });
 
     // 공유 중이라면 역할 수정
@@ -157,30 +159,30 @@ const updateSharedUsers = async (req, res, next) => {
       // 공유 중이 아니라면 추가
       const newShare = new CollectionShare({
         collectionId: collectionId,
-        userId: user._id,
+        userId: newUser._id,
         role: role,
       });
       await newShare.save();
 
       const [owner, invited] = await Promise.all([
-        User.findById(coll.createdBy),
-        User.findById(user._id),
+        User.findById(collection.createdBy),
+        User.findById(newUser._id),
       ]);
 
       const ownerName = owner?.name || "";
       const invitedName =
         invited?.name === "" ? email.split("@")[0] : invited?.name;
-      const collectionName = coll.title;
-      const link = `https://test.com/collections/${coll._id}`; // 수정 필요
+      const collectionName = collection.title;
+      const link = `https://test.com/collections/${collection._id}`; // 수정 필요
 
       // 메일 발송
       try {
         await sendEmail(email, ownerName, invitedName, collectionName, link);
-        res
+        return res
           .status(StatusCodes.CREATED)
           .json({ message: "사용자 추가 및 메일 보내기 성공" });
       } catch (err) {
-        res
+        return res
           .status(StatusCodes.INTERNAL_SERVER_ERROR)
           .json({ error: "메일 발송 중 오류가 발생하였습니다." });
       }
@@ -196,21 +198,27 @@ const deleteSharedUser = async (req, res, next) => {
   const user = req.user.id;
 
   try {
-    const coll = await Collection.findById(collectionId).lean();
-
-    // 찾을 수 없거나 권한 없음
-    if (!coll) {
+    // 찾을 수 없음
+    const collection = await Collection.findById(collectionId).lean();
+    if (!collection) {
       return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
     }
 
-    // 생성자 & 공유자 확인
-    const isOwner = coll.createdBy.toString() === user;
+    // 공유 중인 사용자인지 확인
     const sharing = await CollectionShare.findOne({
       collectionId,
       userId,
     }).lean();
+    if (!sharing) {
+      return res.status(StatusCodes.OK).json({
+        message: "공유 중인 사용자가 아닙니다.",
+      });
+    }
+
+    // 생성자/공유자 본인 확인
+    const isOwner = collection.createdBy.toString() === user;
     const isSharedUser = sharing && sharing.userId.toString() === user;
 
     // 둘 다 아님
@@ -220,8 +228,11 @@ const deleteSharedUser = async (req, res, next) => {
       });
     }
 
-    await CollectionFavorite.deleteOne({ collectionId, userId });
-    await CollectionShare.deleteOne({ collectionId, userId });
+    // 공유 + 즐겨찾기 문서 삭제
+    await Promise.all([
+      CollectionFavorite.deleteMany({ collectionId }),
+      CollectionShare.deleteMany({ collectionId }),
+    ]);
     return res.status(StatusCodes.OK).json({
       message: "사용자 삭제 완료",
     });
