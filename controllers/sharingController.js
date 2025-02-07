@@ -173,7 +173,7 @@ const updateSharedUsers = async (req, res, next) => {
       const invitedName =
         invited?.name === "" ? email.split("@")[0] : invited?.name;
       const collectionName = collection.title;
-      const link = `https://test.com/collections/${collection._id}`; // 수정 필요
+      const link = `https://test.com/references?collection=${collectionName}`; // 수정 필요
 
       // 메일 발송
       try {
