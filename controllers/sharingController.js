@@ -1,11 +1,12 @@
-import { StatusCodes } from "http-status-codes";
-import Collection from "../models/Collection.js";
 import User from "../models/User.js";
+import Collection from "../models/Collection.js";
 import CollectionShare from "../models/CollectionShare.js";
+import CollectionFavorite from "../models/CollectionFavorite.js";
+
+import { StatusCodes } from "http-status-codes";
 import { smtpTransport } from "../config/email.js";
 import path from "path";
 import ejs from "ejs";
-import CollectionFavorite from "../models/CollectionFavorite.js";
 
 const appDir = path.resolve();
 
