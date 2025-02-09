@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  getColList,
   addReference,
   updateReference,
   getReference,
@@ -15,7 +16,8 @@ import downloadFile from "../middlewares/fileDownload.js";
 const router = express.Router();
 
 // 레퍼런스 추가
-router.post("/", authMiddleware, upload, addReference);
+router.post("/add", authMiddleware, upload, addReference);
+router.get("/add", authMiddleware, getColList);
 
 // 레퍼런스 수정
 router.patch("/:referenceId", authMiddleware, upload, updateReference);

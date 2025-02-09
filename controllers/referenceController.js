@@ -1,11 +1,47 @@
 import Reference from "../models/Reference.js";
 import Collection from "../models/Collection.js";
 import CollectionShare from "../models/CollectionShare.js";
+import CollectionFavorite from "../models/CollectionFavorite.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import { getFileUrl } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
 
+// 레퍼런스 추가 (추가 가능한 collection 리스트 조회)
+export const getColList = async (req, res) => {
+  
+  const userId = req.user.id;
+  
+  console.log(userId)
+  try {
+    let collectionSearch = { createdBy: userId };
+    let editorCollSearch = { userId: userId, role: "editor"};
+    let favoriteSearch = { userId: userId, isFavorite: true };
 
+    let createCol = await Collection.distinct("_id", collectionSearch);
+    let editorCol = await CollectionShare.distinct("collectionId", editorCollSearch);
+    let favoriteCol = await CollectionFavorite.distinct("collectionId", favoriteSearch);
+    console.log(createCol, editorCol, favoriteCol)
+    let allCol = [...new Set([...createCol, ...editorCol])];
+    let notFavoriteCol = allCol.filter(id => !favoriteCol.includes(id));
+    
+    let FavoriteTitle = await Collection.distinct("title", { "_id": { $in: favoriteCol }});
+    FavoriteTitle.sort();
+
+    let notFavoriteTitle = await Collection.distinct("title", { "_id": { $in: notFavoriteCol }});
+    notFavoriteTitle.sort();
+    
+    let colTitle = [...new Set([...FavoriteTitle, ...notFavoriteTitle])];
+
+    if(colTitle.length == 0) {
+      res.status(404).json({ message: "컬렉션이 존재하지 않습니다."});
+    } else{
+      res.status(201).json({colTitle, message: "컬렉션이 조회되었습니다."});
+    }
+
+  } catch (error) {
+    res.status(500).json({ message: "레퍼런스 추가 모드에서 오류가 발생하였습니다." });
+  }
+}
 
 // 레퍼런스 추가
 export const addReference = async (req, res) => {
