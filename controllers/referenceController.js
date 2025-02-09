@@ -20,7 +20,6 @@ export const getColList = async (req, res) => {
     let createCol = await Collection.distinct("_id", collectionSearch);
     let editorCol = await CollectionShare.distinct("collectionId", editorCollSearch);
     let favoriteCol = await CollectionFavorite.distinct("collectionId", favoriteSearch);
-    console.log(createCol, editorCol, favoriteCol)
     let allCol = [...new Set([...createCol, ...editorCol])];
     let notFavoriteCol = allCol.filter(id => !favoriteCol.includes(id));
     
