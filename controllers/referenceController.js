@@ -34,7 +34,7 @@ export const getColList = async (req, res) => {
     if(colTitle.length == 0) {
       res.status(404).json({ message: "컬렉션이 존재하지 않습니다."});
     } else{
-      res.status(201).json({colTitle, message: "컬렉션이 조회되었습니다."});
+      res.status(200).json({colTitle, message: "컬렉션이 조회되었습니다."});
     }
 
   } catch (error) {
