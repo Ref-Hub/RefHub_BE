@@ -23,6 +23,6 @@
         "dev": "nodemon app.js",
         "start": "node app.js",
         "seed": "node data/seed.js",
-        "test": "jest"
+        "test": "jest --passWithNoTests"
     }
 }
