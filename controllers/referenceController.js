@@ -383,10 +383,15 @@ export const updateReference = async (req, res) => {
     reference.memo = memo || reference.memo;
     reference.files = files;
 
-    await reference.save();
+    await reference.save();  // 저장 시 '__v' 값이 변경되었으면 VersionError 발생
 
     res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference });
   } catch (err) {
+    if (err.name === "VersionError") {
+      return res.status(409).json({
+        error: "다른 사용자가 레퍼런스 정보를 변경하였습니다. 다시 시도해 주세요.",
+      });
+    }
     console.error("Error during reference update:", err.message);
     res.status(500).json({ error: err.message });
   }
@@ -419,6 +424,7 @@ export const getReferenceDetail = async (req, res) => {
         previewURLs: file.previewURLs || null, // 이미지일 경우 프리뷰 URL 포함
         previewURL: file.previewURL || null, // PDF 또는 기타 파일일 경우 프리뷰 URL 포함
       })),
+      version: reference.__v,
     };
 
     res.status(200).json({ message: "레퍼런스 상세 정보", referenceDetail });
