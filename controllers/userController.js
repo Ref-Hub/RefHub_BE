@@ -77,27 +77,51 @@ export const authEmail = [
   },
 ];
 
-// 인증번호 검증 및 회원가입 함수
+// 인증번호 검증 함수
+export const verifyCode = async (req, res) => {
+  const { email, verificationCode } = req.body;
+
+  if (!email || !verificationCode) {
+    return res.status(400).send('이메일과 인증번호를 입력해주세요.');
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
+      return res.status(400).send('인증번호가 일치하지 않습니다.');
+    }
+
+    if (user.verificationExpires < Date.now()) {
+      return res.status(400).send('인증번호가 만료되었습니다.');
+    }
+
+    req.body.verifiedEmail = email;
+
+    res.status(200).send('인증번호가 확인되었습니다.');
+  } catch (error) {
+    console.error('인증번호 검증 중 오류가 발생했습니다.:', error);
+    res.status(500).send('인증번호 검증 중 오류가 발생했습니다.');
+  }
+};
+
+// 회원가입 함수
 export const createUser = [
   validatePassword,
   validateConfirmPassword,
   validateMiddleware,
   async (req, res) => {
-    const { email, verificationCode, password, confirmPassword } = req.body;
+    const { verifiedEmail, password, confirmPassword,  } = req.body;
 
-    if (!email || !verificationCode || !password || !confirmPassword) {
+    if (!verifiedEmail || !password || !confirmPassword) {
       return res.status(400).send('모든 정보를 입력해주세요.');
     }
 
     try {
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email: verifiedEmail });
 
-      if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
-        return res.status(400).send('인증번호가 일치하지 않습니다.');
-      }
-
-      if (user.verificationExpires < Date.now()) {
-        return res.status(400).send('인증번호가 만료되었습니다.');
+      if (!user) {
+        return res.status(400).send('사용자를 찾을 수 없습니다.');
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
