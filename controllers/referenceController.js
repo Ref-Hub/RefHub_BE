@@ -620,11 +620,11 @@ export const getReference = async (req, res) => {
       // 결과 데이터 변환
       let finalData = data.map((item, index) => {
         const { memo, files, ...obj } = item.toObject();
-        let previewURLs = []
-        files.forEach(file => {
-          if (file.previewURLs && file.previewURLs.length > 0) {
-            previewURLs.push(...file.previewURLs);
-          }});
+        const previewURLs = files.flatMap(file => 
+          file.type === "image" 
+              ? file.previewURLs.map(url => ({ type: file.type, url })) 
+              : [{ type: file.type, url: file.previewURL }]
+            )
         return {
           ...obj,
           number: skip + index + 1,
