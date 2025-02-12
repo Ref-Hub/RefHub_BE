@@ -1,0 +1,51 @@
+name: Node.js CI/CD
+
+on:
+  push:
+    branches: [ "develop" ]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+    - name: 📂 리포지토리 체크아웃
+      uses: actions/checkout@v4
+
+    - name: ⚙️ Node.js ${{ matrix.node-version }} 설정
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: 📦 의존성 설치
+      run: npm ci
+
+    - name: ⚙️ 프로젝트 빌드
+      run: npm run build --if-present
+
+    - name: ✅ 테스트 실행
+      run: npm test
+
+    - name: 🚀 EC2에 배포
+      run: |
+        cd ~/RefHub_BE
+        git pull origin develop
+
+        npm install
+
+        cat <<EOF > .env
+        MONGO_URI=${{ secrets.MONGO_URI }}
+        PORT=${{ secrets.PORT }}
+        EMAIL_PASS=${{ secrets.EMAIL_PASS }}
+        EMAIL_USER=${{ secrets.EMAIL_USER }}
+        JWT_SECRET=${{ secrets.JWT_SECRET }}
+        JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+        EOF
+
+        pm2 restart app
+      shell: bash

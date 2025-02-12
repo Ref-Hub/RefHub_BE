@@ -25,7 +25,7 @@ const referenceSchema = new mongoose.Schema({
   ],
   createdAt: { type: Date, default: Date.now },
 },
-  { versionKey: false }
+  { versionKey: "__v", optimisticConcurrency: true }
 );
 
 function keywordsValidation(keywords) {
