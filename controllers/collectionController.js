@@ -1,10 +1,22 @@
-import { StatusCodes } from "http-status-codes";
 import Collection from "../models/Collection.js";
-import Reference from "../models/Reference.js";
 import CollectionFavorite from "../models/CollectionFavorite.js";
 import CollectionShare from "../models/CollectionShare.js";
+
+import { StatusCodes } from "http-status-codes";
+import Reference from "../models/Reference.js";
 import { MongoError } from "mongodb";
 import mongoose from "mongoose";
+import ogs from "open-graph-scraper";
+
+async function getOGImage(url) {
+  try {
+    const { result } = await ogs({ url });
+    return result.ogImage[0]?.url;
+  } catch (err) {
+    console.error(`OG Image fetch error (${url}:)`, err.message);
+    return null;
+  }
+}
 
 // 컬렉션 생성
 const createCollection = async (req, res, next) => {
@@ -64,21 +76,22 @@ const getCollection = async (req, res, next) => {
       : {};
 
     // 컬렉션 전체 개수 및 메시지 전달
-    const myColletions = await Collection.find({
+    const myCollections = await Collection.find({
       ...searchCondition,
       createdBy: user,
     }).lean();
 
-    const sharedColletions = await CollectionShare.find({
+    // 공유받은 컬렉션 조회
+    const sharedCollectionIds = await CollectionShare.find({
       userId: user,
     }).distinct("collectionId");
-
-    const sharedCollectionData = await Collection.find({
+    const sharedCollections = await Collection.find({
       ...searchCondition,
-      _id: { $in: sharedColletions },
+      _id: { $in: sharedCollectionIds },
     }).lean();
 
-    const allCollections = [...myColletions, ...sharedCollectionData];
+    // 생성 + 공유 컬렉션 합치기
+    const allCollections = [...myCollections, ...sharedCollections];
     const totalItemCount = allCollections.length;
 
     if (totalItemCount === 0) {
@@ -93,7 +106,7 @@ const getCollection = async (req, res, next) => {
     const parsedPage = parseInt(page, 10);
     const validPage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
-    // 조건 필터링
+    // 정렬 조건
     const sortOptions = {
       latest: { createdAt: -1 },
       oldest: { createdAt: 1 },
@@ -102,11 +115,12 @@ const getCollection = async (req, res, next) => {
     };
     const sort = sortOptions[sortBy] || sortOptions.latest;
 
+    // 컬렉션 페이지네이션
     const totalPages = Math.ceil(totalItemCount / pageSize);
     const currentPage = Math.min(validPage, totalPages);
     const skip = (currentPage - 1) * pageSize;
 
-    // 컬렉션 페이지네이션
+    // 정렬 후 페이지네이션 적용
     const paginatedCollections = allCollections
       .sort(
         (a, b) =>
@@ -115,56 +129,60 @@ const getCollection = async (req, res, next) => {
       )
       .slice(skip, skip + pageSize);
 
-    const collectionFavorites = await CollectionFavorite.find({
-      userId: user,
-      collectionId: { $in: paginatedCollections.map((item) => item._id) },
-    }).lean();
+    // 즐겨찾기 정보 조회
+    const collectionIds = paginatedCollections.map((item) => item._id);
+    const [collectionFavorites, references] = await Promise.all([
+      CollectionFavorite.find({
+        userId: user,
+        collectionId: { $in: collectionIds },
+      }).lean(),
+      Reference.find({ collectionId: { $in: collectionIds } }).lean(),
+    ]);
 
-    const references = await Reference.find({
-      collectionId: { $in: paginatedCollections.map((item) => item._id) },
-    }).lean();
-
-    const checkIfShared = async (collectionId) => {
-      const sharedExists = await CollectionShare.exists({ collectionId });
-      return sharedExists ? true : false;
-    };
+    // 공유 정보 조회
+    const sharedCollectionSet = new Set(
+      sharedCollectionIds.map((id) => id.toString())
+    );
 
     // 반환 데이터 재구성
     const modifiedData = await Promise.all(
       paginatedCollections.map(async (item) => {
         // 즐겨찾기 여부
         const isFavorite = collectionFavorites.some(
-          (favorite) =>
-            favorite.collectionId.toString() === item._id.toString() &&
-            favorite.isFavorite
+          (fav) =>
+            fav.collectionId.toString() === item._id.toString() &&
+            fav.isFavorite
         );
 
-        // 참조 수
-        const refCount = references.filter(
+        const refList = references.filter(
           (ref) => ref.collectionId.toString() === item._id.toString()
-        ).length;
+        );
+        const refCount = refList.length;
+        const relevantReferences = refList.slice(0, Math.min(refCount, 4));
 
         // 프리뷰 이미지
-        const limit = Math.max(Math.min(refCount, 4), 0);
-        const relevantReferences = references
-          .filter((ref) => ref.collectionId.toString() === item._id.toString())
-          .slice(0, limit);
+        const previewImages = await Promise.all(
+          relevantReferences.map(async (reference) => {
+            const file = reference.files[0];
+            if (!file) return null;
 
-        const previewImages = relevantReferences.map((reference) => {
-          const file = reference.files.find(
-            (file) => file.type === "image" || reference.files[0]
-          );
-          return file ? file.previewURLs?.[0] || file.previewURL : null;
-        });
-
-        // 공유된 컬렉션인지 확인
-        const isShared = await checkIfShared(item._id);
+            switch (file.type) {
+              case "link":
+                return await getOGImage(file.previewURL);
+              case "image":
+              case "pdf":
+              case "otherfiles":
+              default:
+                return file.previewURLs?.[0] || file.previewURL;
+            }
+          })
+        );
 
         return {
           _id: item._id,
           title: item.title,
           isFavorite: isFavorite,
-          isShared: isShared,
+          isShared: sharedCollectionSet.has(item._id.toString()),
           createdBy: item.createdBy,
           createdAt: item.createdAt,
           refCount: refCount,
