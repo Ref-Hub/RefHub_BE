@@ -7,6 +7,7 @@ const router = express.Router();
 router.post('/email', userController.authEmail);
 
 // 회원가입 라우터
+router.post('/verify-code', userController.verifyCode);
 router.post('/signup', userController.createUser);
 
 // 로그인&로그아웃 라우터
