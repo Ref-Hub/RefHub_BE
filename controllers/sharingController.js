@@ -103,11 +103,15 @@ const getSharedUsers = async (req, res, next) => {
       });
     }
 
+    const owner = await User.findById(user);
     const sharing = await CollectionShare.find({ collectionId })
       .populate("userId", "name email")
       .lean();
 
-    return res.status(StatusCodes.OK).json(sharing);
+    return res.status(StatusCodes.OK).json({
+      ownerEmail: owner.email,
+      sharing: sharing,
+    });
   } catch (err) {
     next(err);
   }
