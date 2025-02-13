@@ -45,9 +45,8 @@ jobs:
         EMAIL_USER=${{ secrets.EMAIL_USER }}
         JWT_SECRET=${{ secrets.JWT_SECRET }}
         JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-        BASE_URL=${{ vars.BASE_URL }}
-        echo "BASE_URL=$BASE_URL"
+        BASE_URL=${{ secrets.BASE_URL }}
         EOF
 
-        pm2 restart app --update-env
+        pm2 restart app
       shell: bash
