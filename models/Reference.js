@@ -21,6 +21,8 @@ const referenceSchema = new mongoose.Schema({
       images: { type: [String], default: [] },
       previewURL: { type: String },
       previewURLs: { type: [String] },
+      filenames: { type: [String] },
+      filename: { type: String },
     },
   ],
   createdAt: { type: Date, default: Date.now },

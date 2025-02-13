@@ -101,6 +101,7 @@ export const addReference = async (req, res) => {
 
         const imagePaths = [];
         const previewURLs = [];
+        const filenames = []; // 원본 파일 이름 추가
         let totalImageSize = 0;
 
         // 이미지 리스트 내 이미지 처리
@@ -109,6 +110,7 @@ export const addReference = async (req, res) => {
           const uploadedImage = await uploadFileToGridFS(image, "uploads");
           imagePaths.push(uploadedImage.id.toString());
           previewURLs.push(getFileUrl(uploadedImage.id.toString()));
+          filenames.push(image.originalname); // 원본 파일명 저장
           totalImageSize += image.size;
         }
 
@@ -119,6 +121,7 @@ export const addReference = async (req, res) => {
           size: totalImageSize,
           images: imagePaths,
           previewURLs: previewURLs,
+          filenames: filenames, // 원본 파일명
         });
 
         totalAttachments++;
@@ -144,6 +147,7 @@ export const addReference = async (req, res) => {
           path: uploadedFile.id.toString(),
           size: file.size,
           previewURL: URL,
+          filename: file.originalname, // PDF 원본 파일명 추가
         });
         totalAttachments++;
       }
@@ -171,6 +175,7 @@ export const addReference = async (req, res) => {
           path: uploadedFile.id.toString(),
           size: file.size,
           previewURL: URL,
+          filename: file.originalname, // 기타 파일명 추가
         });
         totalAttachments++;
       }
@@ -307,6 +312,7 @@ export const updateReference = async (req, res) => {
 
         const imagePaths = [];
         const previewURLs = [];
+        const filenames = [];
         let totalImageSize = 0;
 
         // 이미지 리스트 내 이미지 처리
@@ -315,6 +321,7 @@ export const updateReference = async (req, res) => {
           const uploadedImage = await uploadFileToGridFS(image, "uploads");
           imagePaths.push(uploadedImage.id.toString());
           previewURLs.push(getFileUrl(uploadedImage.id.toString()));
+          filenames.push(image.originalname);
           totalImageSize += image.size;
         }
 
@@ -325,6 +332,7 @@ export const updateReference = async (req, res) => {
           size: totalImageSize,
           images: imagePaths,
           previewURLs: previewURLs,
+          filenames: filenames,
         });
 
         totalAttachments++;
@@ -350,6 +358,7 @@ export const updateReference = async (req, res) => {
           path: uploadedFile.id.toString(),
           size: file.size,
           previewURL: URL,
+          filename: file.originalname,
         });
         totalAttachments++;
       }
@@ -377,6 +386,7 @@ export const updateReference = async (req, res) => {
           path: uploadedFile.id.toString(),
           size: file.size,
           previewURL: URL,
+          filename: file.originalname,
         });
         totalAttachments++;
       }
@@ -428,6 +438,8 @@ export const getReferenceDetail = async (req, res) => {
         images: file.images || null, // 이미지일 경우 이미지 리스트 포함
         previewURLs: file.previewURLs || null, // 이미지일 경우 프리뷰 URL 포함
         previewURL: file.previewURL || null, // PDF 또는 기타 파일일 경우 프리뷰 URL 포함
+        filenames: file.filenames || null,  // 이미지리스트 원본 파일명 포함
+        filename: file.filename || null, // PDF, 기타파일 원본 파일 이름 포함
       })),
       version: reference.__v,
     };

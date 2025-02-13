@@ -103,11 +103,20 @@ const getSharedUsers = async (req, res, next) => {
       });
     }
 
+    const owner = await User.findById(user);
+    const modefiedOwner = {
+      _id: owner._id,
+      name: owner.name,
+      email: owner.email,
+    };
     const sharing = await CollectionShare.find({ collectionId })
       .populate("userId", "name email")
       .lean();
 
-    return res.status(StatusCodes.OK).json(sharing);
+    return res.status(StatusCodes.OK).json({
+      owner: modefiedOwner,
+      sharing: sharing,
+    });
   } catch (err) {
     next(err);
   }
@@ -231,8 +240,8 @@ const deleteSharedUser = async (req, res, next) => {
 
     // 공유 + 즐겨찾기 문서 삭제
     await Promise.all([
-      CollectionFavorite.deleteMany({ collectionId }),
-      CollectionShare.deleteMany({ collectionId }),
+      CollectionFavorite.deleteOne({ collectionId }),
+      CollectionShare.deleteOne({ collectionId }),
     ]);
     return res.status(StatusCodes.OK).json({
       message: "사용자 삭제 완료",
