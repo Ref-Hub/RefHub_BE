@@ -5,6 +5,7 @@ import CollectionFavorite from "../models/CollectionFavorite.js";
 import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import { getFileUrl } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
+import ogs from "open-graph-scraper";
 
 // 레퍼런스 추가 (추가 가능한 collection 리스트 조회)
 export const getColList = async (req, res) => {
@@ -24,10 +25,14 @@ export const getColList = async (req, res) => {
     let notFavoriteCol = allCol.filter(id => !favoriteCol.includes(id));
     
     let FavoriteTitle = await Collection.distinct("title", { "_id": { $in: favoriteCol }});
-    FavoriteTitle.sort();
+    FavoriteTitle.sort((a, b) => {
+      return a - b || a.toString().localeCompare(b.toString());
+    });
 
     let notFavoriteTitle = await Collection.distinct("title", { "_id": { $in: notFavoriteCol }});
-    notFavoriteTitle.sort();
+    notFavoriteTitle.sort((a, b) => {
+      return a - b || a.toString().localeCompare(b.toString());
+    });
     
     let colTitle = [...new Set([...FavoriteTitle, ...notFavoriteTitle])];
 
@@ -617,23 +622,50 @@ export const getReference = async (req, res) => {
       .limit(limit)
       .sort(sort);
 
+
       // 결과 데이터 변환
-      let finalData = data.map((item, index) => {
+      let finalData = await Promise.all(
+        data.map( async (item, index) => {
         const { memo, files, ...obj } = item.toObject();
-        const previewURLs = files.flatMap(file => 
-          file.type === "image" 
-              ? file.previewURLs.map(url => ({ type: file.type, url })) 
-              : [{ type: file.type, url: file.previewURL }]
-            )
+        let previewData = [];
+        let previewURLs = files.flatMap(file => {
+          if (file.type === "image"){
+            return file.previewURLs.map(url => ({ type: file.type, url }));
+          } else if (file.type === "link"){
+            return { type: file.type, url: file.previewURL }
+          } else{
+            return [];
+          }
+        })
+        previewURLs = previewURLs.slice(0,4);
+        for (const file of previewURLs) {
+          if (file.type === "link") {
+            try {
+              const url = file.url;
+              const { result } = await ogs({ url });
+              const ogImageUrl = result?.ogImage?.[0]?.url || null;
+              previewData.push(ogImageUrl);
+            } catch (error) {
+              console.error(`OGS error for ${file.url}:`, error);
+              previewData.push(null);
+            }
+          } else if (file.type === "pdf") {
+            previewData.push(file.url);
+          } else if (file.type === "image") {
+            previewData.push(file.url);
+          } else {
+            previewData.push(null);
+          }
+        }
         return {
           ...obj,
           number: skip + index + 1,
           createAndShare: shareList.map(id => id.toString()).includes(item.collectionId.toString()),
           viewer: viewerList.map(id => id.toString()).includes(item.collectionId.toString()),
           editor: editorList.map(id => id.toString()).includes(item.collectionId.toString()),
-          previewURLs: previewURLs.slice(0,4)
+          previewData: previewData
         };
-      });
+      }));
 
       switch (view) {
         case "card":
@@ -689,6 +721,16 @@ export const getReference = async (req, res) => {
     res.status(500).json({ message: "레퍼런스 조회 중 오류가 발생했습니다." });
   }
 };
+
+async function getOGImage(url) {
+  try {
+    const { result } = await ogs({ url });
+    return result.ogImage[0]?.url;
+  } catch (err) {
+    console.error(`OG Image fetch error (${url}:)`, err.message);
+    return null;
+  }
+}
 
 // 레퍼런스 이동 모드 
 export const moveReferences = async (req, res) => {
