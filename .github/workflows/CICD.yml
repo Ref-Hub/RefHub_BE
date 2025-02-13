@@ -45,6 +45,7 @@ jobs:
         EMAIL_USER=${{ secrets.EMAIL_USER }}
         JWT_SECRET=${{ secrets.JWT_SECRET }}
         JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+        BASE_URL=${{ secrets.BASE_URL }}
         EOF
 
         pm2 restart app
