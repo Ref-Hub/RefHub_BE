@@ -231,8 +231,8 @@ const deleteSharedUser = async (req, res, next) => {
 
     // 공유 + 즐겨찾기 문서 삭제
     await Promise.all([
-      CollectionFavorite.deleteMany({ collectionId }),
-      CollectionShare.deleteMany({ collectionId }),
+      CollectionFavorite.deleteOne({ collectionId }),
+      CollectionShare.deleteOne({ collectionId }),
     ]);
     return res.status(StatusCodes.OK).json({
       message: "사용자 삭제 완료",
