@@ -102,7 +102,7 @@ const getSharedUsers = async (req, res, next) => {
         error: "존재하지 않습니다.",
       });
     }
-    
+
     const owner = await User.findById(collection.createdBy);
     const modefiedOwner = {
       _id: owner._id,
@@ -237,11 +237,14 @@ const deleteSharedUser = async (req, res, next) => {
         error: "존재하지 않습니다.",
       });
     }
-
     // 공유 + 즐겨찾기 문서 삭제
     await Promise.all([
-      CollectionFavorite.deleteOne({ collectionId }),
-      CollectionShare.deleteOne({ collectionId }),
+      CollectionFavorite.deleteOne({
+        collectionId: collectionId,
+        userId: userId,
+      }),
+      CollectionShare.deleteOne({ collectionId: collectionId, userId: userId }),
+      ,
     ]);
     return res.status(StatusCodes.OK).json({
       message: "사용자 삭제 완료",
