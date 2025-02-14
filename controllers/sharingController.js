@@ -102,8 +102,8 @@ const getSharedUsers = async (req, res, next) => {
         error: "존재하지 않습니다.",
       });
     }
-
-    const owner = await User.findById(user);
+    
+    const owner = await User.findById(collection.createdBy);
     const modefiedOwner = {
       _id: owner._id,
       name: owner.name,
