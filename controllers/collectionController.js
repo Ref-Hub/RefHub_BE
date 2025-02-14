@@ -140,9 +140,10 @@ const getCollection = async (req, res, next) => {
     ]);
 
     // 공유 정보 조회
-    const sharedCollectionSet = new Set(
-      sharedCollectionIds.map((id) => id.toString())
-    );
+    const checkIfShared = async (collectionId) => {
+      const sharedExists = await CollectionShare.exists({ collectionId });
+      return sharedExists ? true : false;
+    };
 
     // 반환 데이터 재구성
     const modifiedData = await Promise.all(
@@ -177,12 +178,14 @@ const getCollection = async (req, res, next) => {
             }
           })
         );
+        
+        const isShared = await checkIfShared(item._id);
 
         return {
           _id: item._id,
           title: item.title,
           isFavorite: isFavorite,
-          isShared: sharedCollectionSet.has(item._id.toString()),
+          isShared: isShared,
           createdBy: item.createdBy,
           createdAt: item.createdAt,
           refCount: refCount,
