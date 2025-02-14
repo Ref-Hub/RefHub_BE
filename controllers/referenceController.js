@@ -523,7 +523,6 @@ export const deleteReference = async (req, res) => {
 export const getReference = async (req, res) => {
   const {
     sortBy = "latest",
-    page = 1,
     collection = "all",
     filterBy = "all",
     search = "",
@@ -626,7 +625,6 @@ export const getReference = async (req, res) => {
       })
       .sort(sort);
 
-
       // 결과 데이터 변환
       let finalData = await Promise.all(
         data.map( async (item, index) => {
@@ -686,8 +684,6 @@ export const getReference = async (req, res) => {
       switch (mode) {
         case "home":
           res.status(200).json({
-            currentPage,
-            totalPages,
             totalItemCount,
             data: finalData,
           });
@@ -695,8 +691,6 @@ export const getReference = async (req, res) => {
         case "delete":
           res.status(200).json({
             message: "삭제 모드로 전환되었습니다.",
-            currentPage,
-            totalPages,
             totalItemCount,
             data: finalData,
           });
@@ -704,16 +698,12 @@ export const getReference = async (req, res) => {
         case "move":
           res.status(200).json({
             message: "컬렉션 이동 모드로 전환되었습니다.",
-            currentPage,
-            totalPages,
             totalItemCount,
             data: finalData,
           });
           break;
         default:
           res.status(200).json({
-            currentPage,
-            totalPages,
             totalItemCount,
             data: finalData,
           });
