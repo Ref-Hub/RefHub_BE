@@ -530,7 +530,6 @@ export const getReference = async (req, res) => {
     view = "card",
     mode = "home"
   } = req.query;
-  const limit = 15;
   const userId = req.user.id; // 인증된 유저 ID
 
   const collectionArray = Array.isArray(collection) ? collection : [collection];
@@ -620,18 +619,11 @@ export const getReference = async (req, res) => {
         message: "검색 결과가 없어요.\n다른 검색어로 시도해보세요!",
       });
     } else {
-      // 페이지네이션 계산
-      const totalPages = Math.ceil(totalItemCount / limit);
-      const currentPage = Number(page) > totalPages ? totalPages : Number(page);
-      const skip = (currentPage - 1) * limit;
-
       // 레퍼런스 조회
       let data = await Reference.find({
         ...filterSearch,
         collectionId: { $in: collectionIdList }
       })
-      .skip(skip)
-      .limit(limit)
       .sort(sort);
 
 
@@ -671,7 +663,7 @@ export const getReference = async (req, res) => {
         }
         return {
           ...obj,
-          number: skip + index + 1,
+          number: index + 1,
           createAndShare: shareList.map(id => id.toString()).includes(item.collectionId.toString()),
           viewer: viewerList.map(id => id.toString()).includes(item.collectionId.toString()),
           editor: editorList.map(id => id.toString()).includes(item.collectionId.toString()),
