@@ -183,10 +183,10 @@ const updateSharedUsers = async (req, res, next) => {
       const invitedName =
         invited?.name === "" ? email.split("@")[0] : invited?.name;
       const collectionName = collection.title;
-      const link = `https://test.com/references?collection=${collectionName}`; // 수정 필요
+      const link = `https://www.refhub.my/collections/${collectionId}`;
 
       // 메일 발송
-      try {
+      https: try {
         await sendEmail(email, ownerName, invitedName, collectionName, link);
         return res
           .status(StatusCodes.CREATED)
