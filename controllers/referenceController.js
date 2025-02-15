@@ -9,43 +9,53 @@ import ogs from "open-graph-scraper";
 
 // 레퍼런스 추가 (추가 가능한 collection 리스트 조회)
 export const getColList = async (req, res) => {
-  
   const userId = req.user.id;
-  
-  console.log(userId)
+
+  console.log(userId);
   try {
     let collectionSearch = { createdBy: userId };
-    let editorCollSearch = { userId: userId, role: "editor"};
+    let editorCollSearch = { userId: userId, role: "editor" };
     let favoriteSearch = { userId: userId, isFavorite: true };
 
-    let createCol = await Collection.distinct("_id", collectionSearch);
-    let editorCol = await CollectionShare.distinct("collectionId", editorCollSearch);
-    let favoriteCol = await CollectionFavorite.distinct("collectionId", favoriteSearch);
+    let createCol = await Collection.distinct("_id", collectionSearch).lean();
+    let editorCol = await CollectionShare.distinct(
+      "collectionId",
+      editorCollSearch
+    ).lean();
+    let favoriteCol = await CollectionFavorite.distinct(
+      "collectionId",
+      favoriteSearch
+    ).lean();
     let allCol = [...new Set([...createCol, ...editorCol])];
-    let notFavoriteCol = allCol.filter(id => !favoriteCol.includes(id));
-    
-    let FavoriteTitle = await Collection.distinct("title", { "_id": { $in: favoriteCol }});
+    let notFavoriteCol = allCol.filter((id) => !favoriteCol.includes(id));
+
+    let FavoriteTitle = await Collection.distinct("title", {
+      _id: { $in: favoriteCol },
+    }).lean();
     FavoriteTitle.sort((a, b) => {
       return a - b || a.toString().localeCompare(b.toString());
     });
 
-    let notFavoriteTitle = await Collection.distinct("title", { "_id": { $in: notFavoriteCol }});
+    let notFavoriteTitle = await Collection.distinct("title", {
+      _id: { $in: notFavoriteCol },
+    }).lean();
     notFavoriteTitle.sort((a, b) => {
       return a - b || a.toString().localeCompare(b.toString());
     });
-    
+
     let colTitle = [...new Set([...FavoriteTitle, ...notFavoriteTitle])];
 
-    if(colTitle.length == 0) {
-      res.status(404).json({ message: "컬렉션이 존재하지 않습니다."});
-    } else{
-      res.status(200).json({colTitle, message: "컬렉션이 조회되었습니다."});
+    if (colTitle.length == 0) {
+      res.status(404).json({ message: "컬렉션이 존재하지 않습니다." });
+    } else {
+      res.status(200).json({ colTitle, message: "컬렉션이 조회되었습니다." });
     }
-
   } catch (error) {
-    res.status(500).json({ message: "레퍼런스 추가 모드에서 오류가 발생하였습니다." });
+    res
+      .status(500)
+      .json({ message: "레퍼런스 추가 모드에서 오류가 발생하였습니다." });
   }
-}
+};
 
 // 레퍼런스 추가
 export const addReference = async (req, res) => {
@@ -61,9 +71,7 @@ export const addReference = async (req, res) => {
       createdBy: userId, // 유저가 생성한 콜렉션만
     });
     if (!collection) {
-      return res
-        .status(404)
-        .json({ error: "해당 콜렉션을 찾을 수 없습니다." });
+      return res.status(404).json({ error: "해당 콜렉션을 찾을 수 없습니다." });
     }
 
     const files = [];
@@ -74,11 +82,15 @@ export const addReference = async (req, res) => {
       const linkArray = Array.isArray(links) ? links : [links];
       for (const link of linkArray) {
         if (!link.startsWith("http://") && !link.startsWith("https://")) {
-          return res.status(400).json({ error: "링크는 http:// 또는 https://로 시작해야 합니다." });
+          return res
+            .status(400)
+            .json({ error: "링크는 http:// 또는 https://로 시작해야 합니다." });
         }
 
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         files.push({
@@ -96,7 +108,9 @@ export const addReference = async (req, res) => {
       const key = `images${i}`;
       if (req.files[key]) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const imagePaths = [];
@@ -105,7 +119,9 @@ export const addReference = async (req, res) => {
         let totalImageSize = 0;
 
         // 이미지 리스트 내 이미지 처리
-        const images = Array.isArray(req.files[key]) ? req.files[key] : [req.files[key]];
+        const images = Array.isArray(req.files[key])
+          ? req.files[key]
+          : [req.files[key]];
         for (const image of images) {
           const uploadedImage = await uploadFileToGridFS(image, "uploads");
           imagePaths.push(uploadedImage.id.toString());
@@ -132,12 +148,16 @@ export const addReference = async (req, res) => {
     if (req.files.files) {
       for (const file of req.files.files) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const fileExtension = file.originalname.split(".").pop().toLowerCase();
         if (fileExtension !== "pdf") {
-          return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "PDF 파일만 업로드 가능합니다." });
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
@@ -157,7 +177,9 @@ export const addReference = async (req, res) => {
     if (req.files.otherFiles) {
       for (const file of req.files.otherFiles) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const fileExtension = file.originalname.split(".").pop().toLowerCase();
@@ -165,7 +187,9 @@ export const addReference = async (req, res) => {
         if (allowedExtensions.includes(fileExtension)) {
           return res
             .status(400)
-            .json({ error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다." });
+            .json({
+              error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다.",
+            });
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
@@ -185,7 +209,9 @@ export const addReference = async (req, res) => {
     const reference = new Reference({
       collectionId: collection._id,
       title,
-      keywords: keywords ? keywords.split(" ").filter((kw) => kw.length <= 15) : [],
+      keywords: keywords
+        ? keywords.split(" ").filter((kw) => kw.length <= 15)
+        : [],
       memo,
       files,
     });
@@ -199,9 +225,6 @@ export const addReference = async (req, res) => {
   }
 };
 
-
-
-
 // 레퍼런스 수정
 export const updateReference = async (req, res) => {
   try {
@@ -214,7 +237,9 @@ export const updateReference = async (req, res) => {
     // 기존 레퍼런스 가져오기
     const reference = await Reference.findById(referenceId);
     if (!reference) {
-      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
     // 레퍼런스를 저장할 컬렉션 확인 및 업데이트
@@ -225,14 +250,18 @@ export const updateReference = async (req, res) => {
       });
 
       if (!newCollection) {
-        return res.status(404).json({ error: "해당 컬렉션을 찾을 수 없습니다." });
+        return res
+          .status(404)
+          .json({ error: "해당 컬렉션을 찾을 수 없습니다." });
       }
 
       reference.collectionId = newCollection._id; // 새로운 컬렉션으로 업데이트
     }
 
     const db = mongoose.connection.db; // MongoDB 연결 객체
-    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: "uploads",
+    });
 
     // 기존 첨부 자료 삭제
     for (const file of reference.files) {
@@ -275,7 +304,6 @@ export const updateReference = async (req, res) => {
       }
     }
 
-
     // 기존 첨부 자료 초기화
     const files = [];
     let totalAttachments = 0;
@@ -285,11 +313,15 @@ export const updateReference = async (req, res) => {
       const linkArray = Array.isArray(links) ? links : [links];
       for (const link of linkArray) {
         if (!link.startsWith("http://") && !link.startsWith("https://")) {
-          return res.status(400).json({ error: "링크는 http:// 또는 https://로 시작해야 합니다." });
+          return res
+            .status(400)
+            .json({ error: "링크는 http:// 또는 https://로 시작해야 합니다." });
         }
 
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         files.push({
@@ -307,7 +339,9 @@ export const updateReference = async (req, res) => {
       const key = `images${i}`;
       if (req.files[key]) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const imagePaths = [];
@@ -316,7 +350,9 @@ export const updateReference = async (req, res) => {
         let totalImageSize = 0;
 
         // 이미지 리스트 내 이미지 처리
-        const images = Array.isArray(req.files[key]) ? req.files[key] : [req.files[key]];
+        const images = Array.isArray(req.files[key])
+          ? req.files[key]
+          : [req.files[key]];
         for (const image of images) {
           const uploadedImage = await uploadFileToGridFS(image, "uploads");
           imagePaths.push(uploadedImage.id.toString());
@@ -343,12 +379,16 @@ export const updateReference = async (req, res) => {
     if (req.files.files) {
       for (const file of req.files.files) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const fileExtension = file.originalname.split(".").pop().toLowerCase();
         if (fileExtension !== "pdf") {
-          return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "PDF 파일만 업로드 가능합니다." });
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
@@ -368,7 +408,9 @@ export const updateReference = async (req, res) => {
     if (req.files.otherFiles) {
       for (const file of req.files.otherFiles) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const fileExtension = file.originalname.split(".").pop().toLowerCase();
@@ -376,7 +418,9 @@ export const updateReference = async (req, res) => {
         if (allowedExtensions.includes(fileExtension)) {
           return res
             .status(400)
-            .json({ error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다." });
+            .json({
+              error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다.",
+            });
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
@@ -394,17 +438,20 @@ export const updateReference = async (req, res) => {
 
     // 레퍼런스 데이터 업데이트
     reference.title = title || reference.title;
-    reference.keywords = keywords ? keywords.split(" ").filter((kw) => kw.length <= 15) : reference.keywords;
+    reference.keywords = keywords
+      ? keywords.split(" ").filter((kw) => kw.length <= 15)
+      : reference.keywords;
     reference.memo = memo || reference.memo;
     reference.files = files;
 
-    await reference.save();  // 저장 시 '__v' 값이 변경되었으면 VersionError 발생
+    await reference.save(); // 저장 시 '__v' 값이 변경되었으면 VersionError 발생
 
     res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference });
   } catch (err) {
     if (err.name === "VersionError") {
       return res.status(409).json({
-        error: "다른 사용자가 레퍼런스 정보를 변경하였습니다. 다시 시도해 주세요.",
+        error:
+          "다른 사용자가 레퍼런스 정보를 변경하였습니다. 다시 시도해 주세요.",
       });
     }
     console.error("Error during reference update:", err.message);
@@ -412,17 +459,19 @@ export const updateReference = async (req, res) => {
   }
 };
 
-
-
 // 레퍼런스 상세 기능
 export const getReferenceDetail = async (req, res) => {
   try {
     const { referenceId } = req.params;
 
     // 레퍼런스 찾기
-    const reference = await Reference.findById(referenceId).populate("collectionId", "title");
+    const reference = await Reference.findById(referenceId)
+      .populate("collectionId", "title")
+      .lean();
     if (!reference) {
-      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
     // 응답 데이터 구성
@@ -438,7 +487,7 @@ export const getReferenceDetail = async (req, res) => {
         images: file.images || null, // 이미지일 경우 이미지 리스트 포함
         previewURLs: file.previewURLs || null, // 이미지일 경우 프리뷰 URL 포함
         previewURL: file.previewURL || null, // PDF 또는 기타 파일일 경우 프리뷰 URL 포함
-        filenames: file.filenames || null,  // 이미지리스트 원본 파일명 포함
+        filenames: file.filenames || null, // 이미지리스트 원본 파일명 포함
         filename: file.filename || null, // PDF, 기타파일 원본 파일 이름 포함
       })),
       version: reference.__v,
@@ -447,11 +496,11 @@ export const getReferenceDetail = async (req, res) => {
     res.status(200).json({ message: "레퍼런스 상세 정보", referenceDetail });
   } catch (err) {
     console.error("Error fetching reference detail:", err.message);
-    res.status(500).json({ error: "레퍼런스 상세 정보를 가져오는 중 오류가 발생했습니다." });
+    res
+      .status(500)
+      .json({ error: "레퍼런스 상세 정보를 가져오는 중 오류가 발생했습니다." });
   }
 };
-
-
 
 // 레퍼런스 삭제 기능
 export const deleteReference = async (req, res) => {
@@ -461,11 +510,15 @@ export const deleteReference = async (req, res) => {
     // 레퍼런스 찾기
     const reference = await Reference.findById(referenceId);
     if (!reference) {
-      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
     const db = mongoose.connection.db; // MongoDB 연결 객체
-    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: "uploads",
+    });
 
     // 첨부 자료 삭제
     for (const file of reference.files) {
@@ -514,10 +567,11 @@ export const deleteReference = async (req, res) => {
     res.status(200).json({ message: "레퍼런스가 성공적으로 삭제되었습니다." });
   } catch (err) {
     console.error("Error deleting reference:", err.message);
-    res.status(500).json({ error: "레퍼런스를 삭제하는 중 오류가 발생했습니다." });
+    res
+      .status(500)
+      .json({ error: "레퍼런스를 삭제하는 중 오류가 발생했습니다." });
   }
 };
-
 
 // 레퍼런스 홈
 export const getReference = async (req, res) => {
@@ -527,27 +581,36 @@ export const getReference = async (req, res) => {
     filterBy = "all",
     search = "",
     view = "card",
-    mode = "home"
+    mode = "home",
   } = req.query;
   const userId = req.user.id; // 인증된 유저 ID
 
   const collectionArray = Array.isArray(collection) ? collection : [collection];
   let referenceArray = []; // 검색 결과로 얻은 reference
   let collectionSearch = { createdBy: userId };
-  let viewerCollSearch = { userId: userId , role: "viewer"};
-  let editorCollSearch = { userId: userId, role: "editor"};
+  let viewerCollSearch = { userId: userId, role: "viewer" };
+  let editorCollSearch = { userId: userId, role: "editor" };
 
   try {
     let createList = await Collection.distinct("_id", collectionSearch); // user가 생성한 coll Id
-    let shareList = await CollectionShare.distinct("collectionId",
-      { collectionId: { $in: createList }}); // 공유되고 있는 coll Id
-    let viewerList = await CollectionShare.distinct("collectionId", viewerCollSearch); // viewer로 참여하는 coll Id
-    let editorList = await CollectionShare.distinct("collectionId", editorCollSearch); // editor로 참여하는 coll Id
+    let shareList = await CollectionShare.distinct("collectionId", {
+      collectionId: { $in: createList },
+    }); // 공유되고 있는 coll Id
+    let viewerList = await CollectionShare.distinct(
+      "collectionId",
+      viewerCollSearch
+    ); // viewer로 참여하는 coll Id
+    let editorList = await CollectionShare.distinct(
+      "collectionId",
+      editorCollSearch
+    ); // editor로 참여하는 coll Id
     let collectionIdList = [...createList, ...viewerList, ...editorList]; // user가 참여한 모든 coll Id
 
     // 전체 레퍼런스 조회 (특정 컬렉션 선택 X)
     if (collectionArray[0] === "all") {
-      referenceArray = await Reference.find({collectionId: { $in: collectionIdList }});
+      referenceArray = await Reference.find({
+        collectionId: { $in: collectionIdList },
+      });
       if (referenceArray.length === 0) {
         return res.status(200).json({
           message: "아직 추가한 레퍼런스가 없어요.\n레퍼런스를 추가해보세요!",
@@ -555,15 +618,21 @@ export const getReference = async (req, res) => {
       }
     } else {
       // 특정 컬렉션 조회 (collection 선택 O)
-      let searchCollList = await Collection.distinct("_id", {title: { $in: collectionArray }});
-      collectionIdList = collectionIdList.filter(item => 
-        searchCollList.map(id => id.toString()).includes(item.toString()));
-      shareList = shareList.filter(item => 
-        searchCollList.map(id => id.toString()).includes(item.toString()));
-      viewerList = viewerList.filter(item => 
-        searchCollList.map(id => id.toString()).includes(item.toString()));
-      editorList = editorList.filter(item => 
-        searchCollList.map(id => id.toString()).includes(item.toString()));
+      let searchCollList = await Collection.distinct("_id", {
+        title: { $in: collectionArray },
+      });
+      collectionIdList = collectionIdList.filter((item) =>
+        searchCollList.map((id) => id.toString()).includes(item.toString())
+      );
+      shareList = shareList.filter((item) =>
+        searchCollList.map((id) => id.toString()).includes(item.toString())
+      );
+      viewerList = viewerList.filter((item) =>
+        searchCollList.map((id) => id.toString()).includes(item.toString())
+      );
+      editorList = editorList.filter((item) =>
+        searchCollList.map((id) => id.toString()).includes(item.toString())
+      );
     }
 
     // 정렬 기준 설정
@@ -599,7 +668,7 @@ export const getReference = async (req, res) => {
         filterSearch = {
           $or: [
             { title: { $regex: `${search}`, $options: "i" } },
-            { keywords: { $regex: `${search}`, $options: "i" } }
+            { keywords: { $regex: `${search}`, $options: "i" } },
           ],
         };
         break;
@@ -610,7 +679,7 @@ export const getReference = async (req, res) => {
     // 총 레퍼런스 개수 계산
     const totalItemCount = await Reference.countDocuments({
       ...filterSearch,
-      collectionId: { $in: collectionIdList }
+      collectionId: { $in: collectionIdList },
     });
 
     if (totalItemCount === 0) {
@@ -621,53 +690,59 @@ export const getReference = async (req, res) => {
       // 레퍼런스 조회
       let data = await Reference.find({
         ...filterSearch,
-        collectionId: { $in: collectionIdList }
-      })
-      .sort(sort);
+        collectionId: { $in: collectionIdList },
+      }).sort(sort);
 
       // 결과 데이터 변환
       let finalData = await Promise.all(
-        data.map( async (item, index) => {
-        const { memo, files, ...obj } = item.toObject();
-        let previewData = [];
-        let previewURLs = files.flatMap(file => {
-          if (file.type === "image"){
-            return file.previewURLs.map(url => ({ type: file.type, url }));
-          } else if (file.type === "link"){
-            return { type: file.type, url: file.previewURL }
-          } else{
-            return [];
-          }
-        })
-        previewURLs = previewURLs.slice(0,4);
-        for (const file of previewURLs) {
-          if (file.type === "link") {
-            try {
-              const url = file.url;
-              const { result } = await ogs({ url });
-              const ogImageUrl = result?.ogImage?.[0]?.url || null;
-              previewData.push(ogImageUrl);
-            } catch (error) {
-              console.error(`OGS error for ${file.url}:`, error);
+        data.map(async (item, index) => {
+          const { memo, files, ...obj } = item.toObject();
+          let previewData = [];
+          let previewURLs = files.flatMap((file) => {
+            if (file.type === "image") {
+              return file.previewURLs.map((url) => ({ type: file.type, url }));
+            } else if (file.type === "link") {
+              return { type: file.type, url: file.previewURL };
+            } else {
+              return [];
+            }
+          });
+          previewURLs = previewURLs.slice(0, 4);
+          for (const file of previewURLs) {
+            if (file.type === "link") {
+              try {
+                const url = file.url;
+                const { result } = await ogs({ url });
+                const ogImageUrl = result?.ogImage?.[0]?.url || null;
+                previewData.push(ogImageUrl);
+              } catch (error) {
+                console.error(`OGS error for ${file.url}:`, error);
+                previewData.push(null);
+              }
+            } else if (file.type === "pdf") {
+              previewData.push(file.url);
+            } else if (file.type === "image") {
+              previewData.push(file.url);
+            } else {
               previewData.push(null);
             }
-          } else if (file.type === "pdf") {
-            previewData.push(file.url);
-          } else if (file.type === "image") {
-            previewData.push(file.url);
-          } else {
-            previewData.push(null);
           }
-        }
-        return {
-          ...obj,
-          number: index + 1,
-          createAndShare: shareList.map(id => id.toString()).includes(item.collectionId.toString()),
-          viewer: viewerList.map(id => id.toString()).includes(item.collectionId.toString()),
-          editor: editorList.map(id => id.toString()).includes(item.collectionId.toString()),
-          previewData: previewData
-        };
-      }));
+          return {
+            ...obj,
+            number: index + 1,
+            createAndShare: shareList
+              .map((id) => id.toString())
+              .includes(item.collectionId.toString()),
+            viewer: viewerList
+              .map((id) => id.toString())
+              .includes(item.collectionId.toString()),
+            editor: editorList
+              .map((id) => id.toString())
+              .includes(item.collectionId.toString()),
+            previewData: previewData,
+          };
+        })
+      );
 
       switch (view) {
         case "card":
@@ -707,11 +782,10 @@ export const getReference = async (req, res) => {
             totalItemCount,
             data: finalData,
           });
-        }
+      }
     }
-    
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({ message: "레퍼런스 조회 중 오류가 발생했습니다." });
   }
 };
@@ -726,50 +800,58 @@ async function getOGImage(url) {
   }
 }
 
-// 레퍼런스 이동 모드 
+// 레퍼런스 이동 모드
 export const moveReferences = async (req, res) => {
   try {
     let { referenceIds, newCollection } = req.body;
     const collection = await Collection.findOne({ title: newCollection });
 
     if (!collection) {
-      res.status(404).json({ message: "컬렉션이 존재하지 않습니다."});
-    } else{
+      res.status(404).json({ message: "컬렉션이 존재하지 않습니다." });
+    } else {
       const collectionId = collection._id;
       const updatedReferences = await Reference.updateMany(
-        { _id: { $in: referenceIds } }, 
+        { _id: { $in: referenceIds } },
         { $set: { collectionId: collectionId } }
       );
-    
-      res.status(200).json({ message: `레퍼런스를 이동하였습니다.`});
-    }
-  } catch(error) {
-    res.status(500).json({ message: "레퍼런스 이동 모드에서 오류가 발생하였습니다." });
-  }
-}
 
-// 레퍼런스 삭제 모드 
+      res.status(200).json({ message: `레퍼런스를 이동하였습니다.` });
+    }
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "레퍼런스 이동 모드에서 오류가 발생하였습니다." });
+  }
+};
+
+// 레퍼런스 삭제 모드
 export const deleteReferences = async (req, res) => {
   try {
     const { referenceIds } = req.body;
 
     for (const id of referenceIds) {
-      if (mongoose.Types.ObjectId.isValid(id) == false){
-        return res.status(400).json({ message: "레퍼런스의 Id 형식이 올바르지 않습니다."})
+      if (mongoose.Types.ObjectId.isValid(id) == false) {
+        return res
+          .status(400)
+          .json({ message: "레퍼런스의 Id 형식이 올바르지 않습니다." });
       }
     }
 
     // 레퍼런스 찾기
     const references = await Reference.find({ _id: { $in: referenceIds } });
     if (references.length !== referenceIds.length) {
-      return res.status(404).json({ message: "해당 레퍼런스를 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ message: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
     const db = mongoose.connection.db; // MongoDB 연결 객체
-    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
+    const bucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: "uploads",
+    });
 
-    // 첨부 자료 삭제 
-    for ( const reference of references) {
+    // 첨부 자료 삭제
+    for (const reference of references) {
       for (const file of reference.files) {
         console.log("파일 데이터:", file); // 각 file 객체 출력
         if (file.type === "file" || file.type === "pdf") {
@@ -805,7 +887,10 @@ export const deleteReferences = async (req, res) => {
               }
             }
           } catch (error) {
-            console.error(`이미지 파일 삭제 실패: ${file.images}`, error.message);
+            console.error(
+              `이미지 파일 삭제 실패: ${file.images}`,
+              error.message
+            );
           }
         }
       }
@@ -813,9 +898,10 @@ export const deleteReferences = async (req, res) => {
     // 레퍼런스 삭제
     await Reference.deleteMany({ _id: { $in: referenceIds } });
     res.status(200).json({ message: "삭제가 완료되었습니다." });
-
   } catch (error) {
     console.log("레퍼런스 삭제 모드 오류:", error.message);
-    res.status(500).json({ message: "레퍼런스 삭제 모드에서 오류가 발생하였습니다." });
+    res
+      .status(500)
+      .json({ message: "레퍼런스 삭제 모드에서 오류가 발생하였습니다." });
   }
-}
+};
