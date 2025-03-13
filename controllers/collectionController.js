@@ -159,7 +159,9 @@ const getCollection = async (req, res, next) => {
           (ref) => ref.collectionId.toString() === item._id.toString()
         );
         const refCount = refList.length;
-        const relevantReferences = refList.slice(0, Math.min(refCount, 4));
+        const relevantReferences = refList
+          .slice(-Math.min(refCount, 4))
+          .reverse();
 
         // 프리뷰 이미지
         const previewImages = await Promise.all(
