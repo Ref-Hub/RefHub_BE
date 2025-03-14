@@ -180,7 +180,7 @@ const getCollection = async (req, res, next) => {
             }
           })
         );
-        
+
         const isShared = await checkIfShared(item._id);
 
         return {
@@ -254,6 +254,51 @@ const updateCollection = async (req, res, next) => {
         error: "중복된 이름입니다.",
       });
     }
+    next(err);
+  }
+};
+
+// 컬렉션 이동모드
+const moveCollection = async (req, res, next) => {
+  const { collectionIds } = req.body;
+  const { newCollection } = req.body;
+  const user = req.user.id;
+
+  try {
+    // 생성자인지 확인
+    const collections = await Collection.find({
+      _id: { $in: collectionIds },
+      createdBy: user,
+    }).lean();
+
+    if (collections.length === 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "존재하지 않습니다.",
+      });
+    }
+
+    // 헤딩 컬렉션 레퍼런스 찾기
+    const referenceIds = await Reference.find({
+      collectionId: { $in: collectionIds },
+    });
+
+    if (referenceIds.length === 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "해당 컬렉션을 참조하는 레퍼런스가 없습니다.",
+      });
+    }
+
+    // 레퍼런스 컬렉션 아이디 업데이트
+    await Reference.updateMany(
+      { _id: { $in: referenceIds.map((ref) => ref._id) } },
+      { $set: { collectionId: newCollection } }
+    );
+
+    return res.status(StatusCodes.OK).json({
+      message: "이동이 완료되었습니다.",
+      updatedCount: referenceIds.length,
+    });
+  } catch (err) {
     next(err);
   }
 };
@@ -406,5 +451,6 @@ export default {
   getCollection,
   updateCollection,
   deleteCollection,
+  moveCollection,
   toggleFavorite,
 };
