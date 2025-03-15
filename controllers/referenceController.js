@@ -263,6 +263,7 @@ export const updateReference = async (req, res) => {
       bucketName: "uploads",
     });
 
+    /*
     // 기존 첨부 자료 삭제
     for (const file of reference.files) {
       console.log("파일 데이터:", file); // 각 file 객체 출력
@@ -303,6 +304,7 @@ export const updateReference = async (req, res) => {
         }
       }
     }
+    */
 
     // 기존 첨부 자료 초기화
     const files = [];
