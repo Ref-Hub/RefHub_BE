@@ -49,25 +49,18 @@ export const authEmail = [
   async (req, res) => {
     const { name, email } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).send('이름과 이메일을 모두 입력해주세요.');
-    }  
-
     const verificationCode = Math.floor(100000 + Math.random() * 900000);
     const verificationExpires = Date.now() + 10 * 60 * 1000;
 
     try {
-      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
-
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        existingUser.verificationCode = verificationCode;
-        existingUser.verificationExpires = verificationExpires;
-        existingUser.name = name;
-        await existingUser.save();
-      } else {
-        await User.create({ name, email, verificationCode, verificationExpires });
+        return res.status(400).send('이미 가입된 이메일입니다.');
       }
+
+      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
+
+      await User.create({ name, email, verificationCode, verificationExpires });
 
       res.status(200).send('인증번호 메일이 전송되었습니다.');
     } catch (error) {
