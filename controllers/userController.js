@@ -144,10 +144,9 @@ export const createUser = [
 // 로그인 함수
 export const loginUser = [
   validateEmail,
-  validatePassword,
   validateMiddleware,
-  async (req, res) => {
-    const { email, password, autoLogin = false } = req.body;
+  async (req, res, next) => {
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).send('이메일과 비밀번호를 모두 입력해주세요.');
@@ -160,6 +159,20 @@ export const loginUser = [
         return res.status(404).send('등록되지 않은 이메일입니다.');
       }
 
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('로그인 중 오류가 발생했습니다.:', error);
+      res.status(500).send('로그인 중 오류가 발생했습니다.');
+    }
+  },
+  validatePassword,
+  validateMiddleware,
+  async (req, res) => {
+    const { password, autoLogin = false } = req.body;
+    const user = req.user;
+
+    try {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
