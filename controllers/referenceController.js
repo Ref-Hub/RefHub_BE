@@ -589,15 +589,19 @@ export const getReference = async (req, res) => {
 
   const collectionArray = Array.isArray(collection) ? collection : [collection];
   let referenceArray = []; // 검색 결과로 얻은 reference
-  let collectionSearch = { createdBy: userId };
-  let viewerCollSearch = { userId: userId, role: "viewer" };
-  let editorCollSearch = { userId: userId, role: "editor" };
+//  let collectionSearch = { createdBy: userId };
+  let creatorColSearch = { createdBy: userId}; // creator
+  let viewerCollSearch = { userId: userId, role: "viewer" }; // viewer
+  let editorCollSearch = { userId: userId, role: "editor" }; // editor
 
   try {
-    let createList = await Collection.distinct("_id", collectionSearch); // user가 생성한 coll Id
-    let shareList = await CollectionShare.distinct("collectionId", {
-      collectionId: { $in: createList },
-    }); // 공유되고 있는 coll Id
+    let creatorList = await Collection.distinct("_id", creatorColSearch); // user가 생성한 coll Id, creator
+//    let shareList = await CollectionShare.distinct("collectionId", {
+//      collectionId: { $in: createList },
+//    }); // user가 생성한 collection 중 공유되고 있는 coll Id
+    let creatAndShareList = await CollectionShare.distinct("collectionId", {
+      collectionId: { $in: creatorList },
+    }); // user가 생성한 collection 중 공유되고 있는 coll Id
     let viewerList = await CollectionShare.distinct(
       "collectionId",
       viewerCollSearch
@@ -606,7 +610,8 @@ export const getReference = async (req, res) => {
       "collectionId",
       editorCollSearch
     ); // editor로 참여하는 coll Id
-    let collectionIdList = [...createList, ...viewerList, ...editorList]; // user가 참여한 모든 coll Id
+    let collectionIdList = [...creatorList, ...viewerList, ...editorList]; // user가 참여한 모든 coll Id
+    let sharedList = [...creatAndShareList, ...viewerList, ...editorList] // 공유되고 있는 모든 col Id (생성, 참여)
 
     // 전체 레퍼런스 조회 (특정 컬렉션 선택 X)
     if (collectionArray[0] === "all") {
@@ -626,7 +631,10 @@ export const getReference = async (req, res) => {
       collectionIdList = collectionIdList.filter((item) =>
         searchCollList.map((id) => id.toString()).includes(item.toString())
       );
-      shareList = shareList.filter((item) =>
+//      creatAndShareList = creatAndShareList.filter((item) =>
+//        searchCollList.map((id) => id.toString()).includes(item.toString())
+//      );
+      creatorList = creatorList.filter((item) => 
         searchCollList.map((id) => id.toString()).includes(item.toString())
       );
       viewerList = viewerList.filter((item) =>
@@ -635,6 +643,8 @@ export const getReference = async (req, res) => {
       editorList = editorList.filter((item) =>
         searchCollList.map((id) => id.toString()).includes(item.toString())
       );
+      sharedList = sharedList.filter((item) => 
+        searchCollList.map((id) => id.toString()).includes(item.toString()))
     }
 
     // 정렬 기준 설정
@@ -732,9 +742,15 @@ export const getReference = async (req, res) => {
           return {
             ...obj,
             number: index + 1,
-            createAndShare: shareList
+            shared: sharedList
               .map((id) => id.toString())
               .includes(item.collectionId.toString()),
+            creator: creatorList
+              .map((id) => id.toString())
+              .includes(item.collectionId.toString()),
+//            createAndShare: creatAndShareList
+//              .map((id) => id.toString())
+//              .includes(item.collectionId.toString()),
             viewer: viewerList
               .map((id) => id.toString())
               .includes(item.collectionId.toString()),
