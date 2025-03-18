@@ -11,9 +11,12 @@ import {
 } from "../controllers/referenceController.js";
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/fileUpload.js";
-import downloadFile from "../middlewares/fileDownload.js";
+import { downloadFileFromS3 } from "../middlewares/fileDownload.js";
 
 const router = express.Router();
+
+// 파일 다운로드
+router.get("/download", authMiddleware, downloadFileFromS3);
 
 // 레퍼런스 추가
 router.post("/add", authMiddleware, upload, addReference);
@@ -35,9 +38,6 @@ router.delete("/:referenceId", authMiddleware, deleteReference);
 router.delete("/", authMiddleware, deleteReferences);
 
 // 레퍼런스 이동 
-router.patch("/", authMiddleware, moveReferences)
-
-// 파일 다운로드
-router.get("/file/:id", authMiddleware, downloadFile);
+router.patch("/", authMiddleware, moveReferences);
 
 export default router;
