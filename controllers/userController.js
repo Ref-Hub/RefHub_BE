@@ -1,12 +1,14 @@
 import User from '../models/User.js';
+import CollectionShare from '../models/CollectionShare.js';
 import ejs from 'ejs';
 import path from 'path';
 import bcrypt from 'bcrypt';
 import { smtpTransport } from '../config/email.js';
 import jwt from 'jsonwebtoken';
+import { authenticate } from '../middlewares/authenticate.js';
 import validators from '../middlewares/validators.js';
 
-const { validateName, validateEmail, validatePassword, validateNewPassword, validateConfirmPassword,validateNewConfirmPassword, validateMiddleware } = validators;
+const { validateName, validateEmail, validatePassword, validateNewPassword, validateConfirmPassword, validateNewConfirmPassword, validateMiddleware } = validators;
 
 const appDir = path.resolve();
 
@@ -138,26 +140,32 @@ export const createUser = [
   },
 ];
 
-// 회원탈퇴 함수(임시)
+// 회원탈퇴 함수
 export const deleteUser = async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).send('이메일을 입력해주세요.');
-  }
-
-  try {
-    const user = await User.findOneAndDelete({ email });
+  await authenticate(req, res, async () => {
+    const { user } = req;
 
     if (!user) {
-      return res.status(404).send('사용자를 찾을 수 없습니다.');
+      return res.status(400).send('사용자 정보를 찾을 수 없습니다.');
     }
 
-    res.status(200).send('회원탈퇴가 완료되었습니다.');
-  } catch (error) {
-    console.error('회원탈퇴 중 오류가 발생했습니다.:', error);
-    res.status(500).send('회원탈퇴 중 오류가 발생했습니다.');
-  }
+    try {
+      // 공유 중인 컬렉션이 있는지 확인
+      const sharedCollections = await CollectionShare.find({ userId: user._id });
+
+      if (sharedCollections.length > 0) {
+        return res.status(400).send('공유 중인 컬렉션이 있어 탈퇴할 수 없습니다.');
+      }
+
+      user.deleteRequestDate = new Date();
+      await user.save();
+
+      res.status(200).send('탈퇴가 완료되었습니다. 7일 이내에 로그인할 경우, 계정이 복구됩니다.');
+    } catch (error) {
+      console.error('회원탈퇴 중 오류가 발생했습니다.', error);
+      res.status(500).send('회원탈퇴 중 오류가 발생했습니다.');
+    }
+  });
 };
 
 // [로그인]
@@ -177,6 +185,12 @@ export const loginUser = [
 
       if (!user) {
         return res.status(404).send('등록되지 않은 이메일입니다.');
+      }
+
+      // 탈퇴 요청 후 7일 이내에 로그인 시도 시 복구
+      if (user.deleteRequestDate && new Date() - user.deleteRequestDate < 7 * 24 * 60 * 60 * 1000) {
+        user.deleteRequestDate = undefined;
+        await user.save();
       }
 
       req.user = user;

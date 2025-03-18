@@ -19,6 +19,9 @@ const userSchema = new mongoose.Schema({
   },
   verificationExpires: {
     type: Date,
+  },
+  deleteRequestDate: {
+    type: Date,
   }
 },
 { versionKey: false }
