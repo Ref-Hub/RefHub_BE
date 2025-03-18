@@ -6,7 +6,7 @@ const downloadFile = async (req, res) => {
 
   try {
     const db = mongoose.connection.db;
-    const bucket = new GridFSBucket(db, { bucketName: "uploads" });
+    //const bucket = new GridFSBucket(db, { bucketName: "uploads" });
 
     // ObjectId 유효성 검사
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -16,11 +16,21 @@ const downloadFile = async (req, res) => {
     const objectId = new mongoose.Types.ObjectId(id);
 
     // 파일 존재 여부 확인
-    const fileExists = await db.collection("uploads.files").findOne({ _id: objectId });
+    // uploads에 존재하는 경우
+    let fileExists = await db.collection("uploads.files").findOne({ _id: objectId });
+    let bucketName = "uploads";
+
     if (!fileExists) {
-      return res.status(404).json({ message: "File not found" });
+      // imageUploads에 존재하는 경우 (pdf 프리뷰)
+      fileExists = await db.collection("imageUploads.files").findOne({ _id: objectId });
+      bucketName = "imageUploads";
+
+      if (!fileExists) {
+        return res.status(404).json({ message: "File not found" });
+      }
     }
 
+    const bucket = new GridFSBucket(db, { bucketName });
     // 파일 다운로드
     const downloadStream = bucket.openDownloadStream(objectId);
 
