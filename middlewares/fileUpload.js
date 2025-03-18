@@ -1,80 +1,54 @@
-  import multer from "multer";
-  import mongoose from "mongoose";
-  import { GridFSBucket } from "mongodb";
-  import * as dotenv from "dotenv";
+import multer from "multer";
+import dotenv from "dotenv";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { randomUUID } from "crypto";
 
-  dotenv.config();
+dotenv.config();
 
-  // MongoDB 연결
-  let bucket;
+// AWS S3 클라이언트 설정 (v3)
+const s3 = new S3Client({
+  region: process.env.S3_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
-  mongoose.connection.once("open", () => {
-    console.log("MongoDB 연결 성공");
+// multer 설정 (파일 메모리 저장)
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
+}).fields([
+  { name: "files", maxCount: 5 },
+  { name: "images1" },
+  { name: "images2" },
+  { name: "images3" },
+  { name: "images4" },
+  { name: "images5" },
+  { name: "otherFiles", maxCount: 5 },
+]);
 
-    const db = mongoose.connection.db;
-    bucket = new GridFSBucket(db, { bucketName: "uploads" });
+// S3에 파일 업로드 함수
+export const uploadFileToS3 = async (file, fileType) => {
+  try {
+    const fileName = `${randomUUID()}-${file.originalname}`; // UUID로 파일명 중복 방지
+    const uploadParams = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: fileName,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+    };
 
-    console.log("GridFSBucket 초기화 성공:", bucket.s.options.bucketName);
-  });
+    await s3.send(new PutObjectCommand(uploadParams));
+    return {
+      url: `${process.env.S3_BASE_URL}${fileName}`,
+      fileName,
+    };
+  } catch (error) {
+    console.error("S3 파일 업로드 실패:", error.message);
+    throw new Error("파일 업로드 중 오류가 발생했습니다.");
+  }
+};
 
-  mongoose.connection.on("error", (err) => {
-    console.error("MongoDB 연결 실패:", err.message);
-  });
-
-
-  // Multer 메모리 스토리지 설정
-  const storage = multer.memoryStorage();
-  const upload = multer({
-    storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB 제한
-  }).fields([
-    { name: "files", maxCount: 5 }, // PDF 파일
-    { name: "images1" }, // 이미지 파일1
-    { name: "images2" }, // 이미지 파일2
-    { name: "images3" }, // 이미지 파일3
-    { name: "images4" }, // 이미지 파일4
-    { name: "images5" }, // 이미지 파일5
-    { name: "otherFiles", maxCount: 5 }, // 기타 파일
-  ]);
-  
-
-  // 파일 업로드 함수
-  const uploadFileToGridFS = async (file, bucketName = "uploads") => {
-    return new Promise((resolve, reject) => {
-      if (!bucket) {
-        console.error("GridFS bucket이 초기화되지 않았습니다.");
-        return reject(new Error("GridFS bucket is not initialized"));
-      }
-
-      console.log("파일 업로드 시작:", file.originalname);
-  
-      const uploadStream = bucket.openUploadStream(file.originalname, {
-        contentType: file.mimetype,
-        metadata: { uploadedBy: "user" },
-      });
-  
-      uploadStream.end(file.buffer);
-  
-      uploadStream.on("finish", () => {
-        console.log("업로드 스트림 완료 이벤트 발생. 파일 ID:", uploadStream.id);
-  
-        if (!uploadStream.id) {
-          console.error("GridFS 파일 업로드 실패: _id 없음");
-          return reject(new Error("File upload failed. No _id returned."));
-        }
-        resolve({
-          id: uploadStream.id,
-          filename: file.originalname,
-          contentType: file.mimetype,
-        });
-      });
-  
-      uploadStream.on("error", (err) => {
-        console.error("GridFS 업로드 스트림 오류:", err.message);
-        reject(err);
-      });
-    });
-  };
-
-
-  export { upload, uploadFileToGridFS };
+export { upload };
