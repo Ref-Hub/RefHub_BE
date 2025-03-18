@@ -10,6 +10,9 @@ router.post('/email', userController.authEmail);
 router.post('/verify-code', userController.verifyCode);
 router.post('/signup', userController.createUser);
 
+// 회원탈퇴 라우터
+router.delete('/delete', userController.deleteUser);
+
 // 로그인&로그아웃 라우터
 router.post('/login', userController.loginUser);
 router.post('/logout', userController.logoutUser);

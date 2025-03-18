@@ -81,12 +81,17 @@ export const verifyCode = async (req, res) => {
   try {
     const user = await User.findOne({ email });
 
-    if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
-      return res.status(400).send('인증번호가 일치하지 않습니다.');
+    if (!user) {
+      return res.status(400).send('사용자를 찾을 수 없습니다.');
     }
 
     if (user.verificationExpires < Date.now()) {
+      await User.deleteOne({ email });
       return res.status(400).send('인증번호가 만료되었습니다.');
+    }
+
+    if (user.verificationCode !== parseInt(verificationCode, 10)) {
+      return res.status(400).send('인증번호가 일치하지 않습니다.');
     }
 
     req.body.verifiedEmail = email;
@@ -132,6 +137,28 @@ export const createUser = [
     }
   },
 ];
+
+// 회원탈퇴 함수(임시)
+export const deleteUser = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).send('이메일을 입력해주세요.');
+  }
+
+  try {
+    const user = await User.findOneAndDelete({ email });
+
+    if (!user) {
+      return res.status(404).send('사용자를 찾을 수 없습니다.');
+    }
+
+    res.status(200).send('회원탈퇴가 완료되었습니다.');
+  } catch (error) {
+    console.error('회원탈퇴 중 오류가 발생했습니다.:', error);
+    res.status(500).send('회원탈퇴 중 오류가 발생했습니다.');
+  }
+};
 
 // [로그인]
 // 로그인 함수
@@ -271,12 +298,16 @@ export const resetPassword = [
     try {
       const user = await User.findOne({ email });
 
-      if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
-        return res.status(400).send('인증번호가 일치하지 않습니다.');
+      if (!user) {
+        return res.status(400).send('사용자를 찾을 수 없습니다.');
       }
 
       if (user.verificationExpires < Date.now()) {
         return res.status(400).send('인증번호가 만료되었습니다.');
+      }
+
+      if (user.verificationCode !== parseInt(verificationCode, 10)) {
+        return res.status(400).send('인증번호가 일치하지 않습니다.');
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
