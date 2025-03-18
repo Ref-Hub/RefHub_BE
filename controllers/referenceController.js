@@ -6,6 +6,7 @@ import { uploadFileToGridFS } from "../middlewares/fileUpload.js";
 import { getFileUrl } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
 import ogs from "open-graph-scraper";
+import { convertPdfToImage } from "../middlewares/convert.js";
 
 // 레퍼런스 추가 (추가 가능한 collection 리스트 조회)
 export const getColList = async (req, res) => {
@@ -161,7 +162,11 @@ export const addReference = async (req, res) => {
         }
 
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
-        const URL = getFileUrl(uploadedFile.id.toString());
+        const pdfimage = await convertPdfToImage(file);
+        const URL = getFileUrl(pdfimage.id.toString());
+        //const URL = getFileUrl(uploadedFile.id.toString());
+        console.log("pdfimage id: ", pdfimage.id);
+        console.log("URL : ",URL);
         files.push({
           type: "pdf",
           path: uploadedFile.id.toString(),
@@ -392,9 +397,9 @@ export const updateReference = async (req, res) => {
             .status(400)
             .json({ error: "PDF 파일만 업로드 가능합니다." });
         }
-
         const uploadedFile = await uploadFileToGridFS(file, "uploads");
-        const URL = getFileUrl(uploadedFile.id.toString());
+        const pdfimage = await convertPdfToImage(file);
+        const URL = getFileUrl(pdfimage.id.toString());
         files.push({
           type: "pdf",
           path: uploadedFile.id.toString(),
@@ -707,38 +712,40 @@ export const getReference = async (req, res) => {
 
       // 결과 데이터 변환
       let finalData = await Promise.all(
-        data.map(async (item, index) => {
-          const { memo, files, ...obj } = item.toObject();
-          let previewData = [];
-          let previewURLs = files.flatMap((file) => {
-            if (file.type === "image") {
-              return file.previewURLs.map((url) => ({ type: file.type, url }));
-            } else if (file.type === "link") {
-              return { type: file.type, url: file.previewURL };
-            } else {
-              return [];
-            }
-          });
-          previewURLs = previewURLs.slice(0, 4);
-          for (const file of previewURLs) {
-            if (file.type === "link") {
-              try {
-                const url = file.url;
-                const { result } = await ogs({ url });
-                const ogImageUrl = result?.ogImage?.[0]?.url || null;
-                previewData.push(ogImageUrl);
-              } catch (error) {
-                console.error(`OGS error for ${file.url}:`, error);
-                previewData.push(null);
-              }
-            } else if (file.type === "pdf") {
-              previewData.push(file.url);
-            } else if (file.type === "image") {
-              previewData.push(file.url);
-            } else {
+        data.map( async (item, index) => {
+        const { memo, files, ...obj } = item.toObject();
+        let previewData = [];
+        let previewURLs = files.flatMap(file => {
+          if (file.type === "image"){
+            return file.previewURLs.map(url => ({ type: file.type, url }));
+          } else if (file.type === "link"){
+            return { type: file.type, url: file.previewURL }
+          } else if (file.type === "pdf"){
+            return { type: file.type, url: file.previewURL }
+          } else{
+            return [];
+          }
+        })
+        for (const file of previewURLs) {
+          if (file.type === "link") {
+            try {
+              const url = file.url;
+              const { result } = await ogs({ url });
+              const ogImageUrl = result?.ogImage?.[0]?.url || null;
+              previewData.push(ogImageUrl);
+            } catch (error) {
+              console.error(`OGS error for ${file.url}:`, error);
               previewData.push(null);
             }
+          } else if (file.type === "pdf") {
+            previewData.push(file.url);
+          } else if (file.type === "image") {
+            previewData.push(file.url);
+          } else {
+            previewData.push(null);
           }
+        }
+        previewData = previewData.filter(item => item !== null).slice(0, 4);
           return {
             ...obj,
             number: index + 1,
