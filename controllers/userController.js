@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Collection from '../models/Collection.js';
 import CollectionShare from '../models/CollectionShare.js';
 import ejs from 'ejs';
 import path from 'path';
