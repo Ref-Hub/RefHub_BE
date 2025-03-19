@@ -151,9 +151,13 @@ export const deleteUser = async (req, res) => {
 
     try {
       // 공유 중인 컬렉션이 있는지 확인
-      const sharedCollections = await CollectionShare.find({ userId: user._id });
+      const ownedCollections = await Collection.find({ createdBy: user._id }).distinct("_id");
 
-      if (sharedCollections.length > 0) {
+      const sharedOwnedCollections = await CollectionShare.find({
+        collectionId: { $in: ownedCollections },
+      });
+
+      if (sharedOwnedCollections.length > 0) {
         return res.status(400).send('공유 중인 컬렉션이 있어 탈퇴할 수 없습니다.');
       }
 
