@@ -169,11 +169,12 @@ export const addReference = async (req, res) => {
         }
 
         const uploadedFile = await uploadFileToS3(file);
+        const uploadedFilePreview = await convertPdfToImage(file);
         files.push({
           type: "pdf",
           path: uploadedFile.url,
           size: formatFileSize(file.size),
-          previewURL: uploadedFile.url,
+          previewURL: uploadedFilePreview.url,
           filename: file.originalname,
         });
 
@@ -338,11 +339,12 @@ export const updateReference = async (req, res) => {
       for (const file of req.files.files) {
         if (totalAttachments >= 5) break;
         const uploadedFile = await uploadFileToS3(file);
+        const uploadedFilePreview = await convertPdfToImage(file);
         newFiles.push({
           type: "pdf",
           path: uploadedFile.url,
           size: formatFileSize(file.size),
-          previewURL: uploadedFile.url,
+          previewURL: uploadedFilePreview.url,
           filename: file.originalname,
         });
         totalAttachments++;
