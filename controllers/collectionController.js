@@ -13,7 +13,7 @@ async function getOGImage(url) {
     const { result } = await ogs({ url });
     return result.ogImage[0]?.url;
   } catch (err) {
-    console.error(`OG Image fetch error (${url}:)`, err.message);
+    console.log(`OG Image fetch error (${url}:)`, err.message);
     return null;
   }
 }
@@ -181,13 +181,29 @@ const getCollection = async (req, res, next) => {
           })
         );
 
+        const role = await CollectionShare.findOne({
+          collectionId: item._id,
+        }).distinct("role");
+
         const isShared = await checkIfShared(item._id);
+        const isCreator = item.createdBy.toString() === user;
+        const isViewer = role[0] === "viewer";
+        const isEditor = role[0] === "editor";
+
+        console.log(isCreator, isViewer, isEditor);
 
         return {
           _id: item._id,
           title: item.title,
           isFavorite: isFavorite,
           isShared: isShared,
+          creator: isCreator,
+          viewer: isViewer,
+          editor: isEditor,
+          shared: isShared,
+          creator: isCreator,
+          viewer: isViewer,
+          editor: isEditor,
           createdBy: item.createdBy,
           createdAt: item.createdAt,
           refCount: refCount,
