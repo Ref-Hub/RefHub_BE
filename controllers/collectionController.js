@@ -188,17 +188,11 @@ const getCollection = async (req, res, next) => {
         const isViewer = role[0] === "viewer";
         const isEditor = role[0] === "editor";
 
-        console.log(isCreator, isViewer, isEditor);
-
         return {
           _id: item._id,
           title: item.title,
           isFavorite: isFavorite,
           isShared: isShared,
-          creator: isCreator,
-          viewer: isViewer,
-          editor: isEditor,
-          shared: isShared,
           creator: isCreator,
           viewer: isViewer,
           editor: isEditor,
