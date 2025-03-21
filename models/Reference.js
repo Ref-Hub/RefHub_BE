@@ -7,7 +7,7 @@ const referenceSchema = new mongoose.Schema({
     required: true,
   },
   title: { type: String, required: true, maxLength: 20 },
-  keywords: { type: [String], validate: [keywordsValidation, "Invalid keywords"] },
+  keywords: [{ type: mongoose.Schema.Types.ObjectId, ref: "Keyword" }],
   memo: { type: String, maxLength: 500 },
   files: [
     {
@@ -16,13 +16,13 @@ const referenceSchema = new mongoose.Schema({
         enum: ["link", "image", "pdf", "file"],
         required: true,
       },
-      path: { type: String, required: true },
-      size: { type: Number, required: true },
-      images: { type: [String], default: [] },
+      path: { type: String, required: true }, // GridFS ObjectID 대신 S3 URL 저장
+      size: { type: String, required: true },
       previewURL: { type: String },
-      previewURLs: { type: [String] },
+      filenames: { type: [String] },
+      filename: { type: String },
     },
-  ],
+  ],  
   createdAt: { type: Date, default: Date.now },
 },
   { versionKey: "__v", optimisticConcurrency: true }

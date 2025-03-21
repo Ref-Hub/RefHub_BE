@@ -24,6 +24,18 @@ router.post(
 // 컬렉션 목록 조회
 router.get("/", authMiddleware, Collection.getCollection);
 
+// 컬렉션 이동모드
+router.patch(
+  "/",
+  authMiddleware,
+  [
+    validateObjectIdArray("collectionIds"),
+    validateObjectId("newCollection"),
+    validateMiddleware,
+  ],
+  Collection.moveCollection
+);
+
 // 컬렉션 삭제
 router.delete(
   "/",

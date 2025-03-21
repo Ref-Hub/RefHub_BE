@@ -27,16 +27,42 @@ const validateName = check("name")
   .withMessage("이름은 최대 10글자까지 입력할 수 있습니다.");
 
 const validatePassword = check("password")
-  .matches(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
-  .withMessage("비밀번호는 영문(대/소문자), 숫자, 특수문자 2종류 이상의 조합으로 이루어져야 합니다.")
-  .isLength({ min: 8, max: 12 })
-  .withMessage("비밀번호는 8~12글자 이내로 입력할 수 있습니다.");
+  .custom((value) => {
+    if (value.length < 8 || value.length > 12) {
+      throw new Error("비밀번호는 8~12글자 이내로 입력할 수 있습니다.");
+    }
+
+    const hasLetter = /[A-Za-z]/.test(value);
+    const hasDigit = /\d/.test(value);
+    const hasSpecialChar = /[@$!%*?&]/.test(value);
+
+    const typeCount = [hasLetter, hasDigit, hasSpecialChar].filter(Boolean).length;
+
+    if (typeCount < 2) {
+      throw new Error("비밀번호는 영문(대/소문자), 숫자, 특수문자 2종류 이상의 조합으로 이루어져야 합니다.");
+    }
+
+    return true;
+  });
 
 const validateNewPassword = check("newPassword")
-.matches(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
-.withMessage("비밀번호는 영문(대/소문자), 숫자, 특수문자 2종류 이상의 조합으로 이루어져야 합니다.")
-.isLength({ min: 8, max: 12 })
-.withMessage("비밀번호는 8~12글자 이내로 입력할 수 있습니다.");
+  .custom((value) => {
+    if (value.length < 8 || value.length > 12) {
+      throw new Error("비밀번호는 8~12글자 이내로 입력할 수 있습니다.");
+    }
+
+    const hasLetter = /[A-Za-z]/.test(value);
+    const hasDigit = /\d/.test(value);
+    const hasSpecialChar = /[@$!%*?&]/.test(value);
+
+    const typeCount = [hasLetter, hasDigit, hasSpecialChar].filter(Boolean).length;
+
+    if (typeCount < 2) {
+      throw new Error("비밀번호는 영문(대/소문자), 숫자, 특수문자 2종류 이상의 조합으로 이루어져야 합니다.");
+    }
+
+    return true;
+  });
   
 const validateConfirmPassword = check("confirmPassword")
   .custom((value, { req }) => value === req.body.password)

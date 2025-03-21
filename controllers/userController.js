@@ -1,12 +1,15 @@
 import User from '../models/User.js';
+import Collection from '../models/Collection.js';
+import CollectionShare from '../models/CollectionShare.js';
 import ejs from 'ejs';
 import path from 'path';
 import bcrypt from 'bcrypt';
 import { smtpTransport } from '../config/email.js';
 import jwt from 'jsonwebtoken';
+import { authenticate } from '../middlewares/authenticate.js';
 import validators from '../middlewares/validators.js';
 
-const { validateName, validateEmail, validatePassword, validateNewPassword, validateConfirmPassword,validateNewConfirmPassword, validateMiddleware } = validators;
+const { validateName, validateEmail, validatePassword, validateNewPassword, validateConfirmPassword, validateNewConfirmPassword, validateMiddleware } = validators;
 
 const appDir = path.resolve();
 
@@ -49,25 +52,18 @@ export const authEmail = [
   async (req, res) => {
     const { name, email } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).send('이름과 이메일을 모두 입력해주세요.');
-    }  
-
     const verificationCode = Math.floor(100000 + Math.random() * 900000);
     const verificationExpires = Date.now() + 10 * 60 * 1000;
 
     try {
-      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
-
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        existingUser.verificationCode = verificationCode;
-        existingUser.verificationExpires = verificationExpires;
-        existingUser.name = name;
-        await existingUser.save();
-      } else {
-        await User.create({ name, email, verificationCode, verificationExpires });
+        return res.status(400).send('이미 가입된 이메일입니다.');
       }
+
+      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
+
+      await User.create({ name, email, verificationCode, verificationExpires });
 
       res.status(200).send('인증번호 메일이 전송되었습니다.');
     } catch (error) {
@@ -88,12 +84,17 @@ export const verifyCode = async (req, res) => {
   try {
     const user = await User.findOne({ email });
 
-    if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
-      return res.status(400).send('인증번호가 일치하지 않습니다.');
+    if (!user) {
+      return res.status(400).send('사용자를 찾을 수 없습니다.');
     }
 
     if (user.verificationExpires < Date.now()) {
+      await User.deleteOne({ email });
       return res.status(400).send('인증번호가 만료되었습니다.');
+    }
+
+    if (user.verificationCode !== parseInt(verificationCode, 10)) {
+      return res.status(400).send('인증번호가 일치하지 않습니다.');
     }
 
     req.body.verifiedEmail = email;
@@ -140,14 +141,45 @@ export const createUser = [
   },
 ];
 
+// 회원탈퇴 함수
+export const deleteUser = async (req, res) => {
+  await authenticate(req, res, async () => {
+    const { user } = req;
+
+    if (!user) {
+      return res.status(400).send('사용자 정보를 찾을 수 없습니다.');
+    }
+
+    try {
+      // 공유 중인 컬렉션이 있는지 확인
+      const ownedCollections = await Collection.find({ createdBy: user._id }).distinct("_id");
+
+      const sharedOwnedCollections = await CollectionShare.find({
+        collectionId: { $in: ownedCollections },
+      });
+
+      if (sharedOwnedCollections.length > 0) {
+        return res.status(400).send('공유 중인 컬렉션이 있어 탈퇴할 수 없습니다.');
+      }
+
+      user.deleteRequestDate = new Date();
+      await user.save();
+
+      res.status(200).send('탈퇴가 완료되었습니다. 7일 이내에 로그인할 경우, 계정이 복구됩니다.');
+    } catch (error) {
+      console.error('회원탈퇴 중 오류가 발생했습니다.', error);
+      res.status(500).send('회원탈퇴 중 오류가 발생했습니다.');
+    }
+  });
+};
+
 // [로그인]
 // 로그인 함수
 export const loginUser = [
   validateEmail,
-  validatePassword,
   validateMiddleware,
-  async (req, res) => {
-    const { email, password, autoLogin = false } = req.body;
+  async (req, res, next) => {
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).send('이메일과 비밀번호를 모두 입력해주세요.');
@@ -160,6 +192,26 @@ export const loginUser = [
         return res.status(404).send('등록되지 않은 이메일입니다.');
       }
 
+      // 탈퇴 요청 후 7일 이내에 로그인 시도 시 복구
+      if (user.deleteRequestDate && new Date() - user.deleteRequestDate < 7 * 24 * 60 * 60 * 1000) {
+        user.deleteRequestDate = undefined;
+        await user.save();
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      console.error('로그인 중 오류가 발생했습니다.:', error);
+      res.status(500).send('로그인 중 오류가 발생했습니다.');
+    }
+  },
+  validatePassword,
+  validateMiddleware,
+  async (req, res) => {
+    const { password, autoLogin = false } = req.body;
+    const user = req.user;
+
+    try {
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
@@ -265,12 +317,16 @@ export const resetPassword = [
     try {
       const user = await User.findOne({ email });
 
-      if (!user || user.verificationCode !== parseInt(verificationCode, 10)) {
-        return res.status(400).send('인증번호가 일치하지 않습니다.');
+      if (!user) {
+        return res.status(400).send('사용자를 찾을 수 없습니다.');
       }
 
       if (user.verificationExpires < Date.now()) {
         return res.status(400).send('인증번호가 만료되었습니다.');
+      }
+
+      if (user.verificationCode !== parseInt(verificationCode, 10)) {
+        return res.status(400).send('인증번호가 일치하지 않습니다.');
       }
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
