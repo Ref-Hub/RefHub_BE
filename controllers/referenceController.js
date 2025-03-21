@@ -479,16 +479,12 @@ export const getReference = async (req, res) => {
 
   const collectionArray = Array.isArray(collection) ? collection : [collection];
   let referenceArray = []; // 검색 결과로 얻은 reference
-//  let collectionSearch = { createdBy: userId };
   let creatorColSearch = { createdBy: userId}; // creator
   let viewerCollSearch = { userId: userId, role: "viewer" }; // viewer
   let editorCollSearch = { userId: userId, role: "editor" }; // editor
 
   try {
     let creatorList = await Collection.distinct("_id", creatorColSearch); // user가 생성한 coll Id, creator
-//    let shareList = await CollectionShare.distinct("collectionId", {
-//      collectionId: { $in: createList },
-//    }); // user가 생성한 collection 중 공유되고 있는 coll Id
     let creatAndShareList = await CollectionShare.distinct("collectionId", {
       collectionId: { $in: creatorList },
     }); // user가 생성한 collection 중 공유되고 있는 coll Id
@@ -521,9 +517,6 @@ export const getReference = async (req, res) => {
       collectionIdList = collectionIdList.filter((item) =>
         searchCollList.map((id) => id.toString()).includes(item.toString())
       );
-//      creatAndShareList = creatAndShareList.filter((item) =>
-//        searchCollList.map((id) => id.toString()).includes(item.toString())
-//      );
       creatorList = creatorList.filter((item) => 
         searchCollList.map((id) => id.toString()).includes(item.toString())
       );
@@ -559,18 +552,24 @@ export const getReference = async (req, res) => {
 
     // 필터링 조건 설정
     let filterSearch;
+    let keywordSearch;
+    let keywordIds;
     switch (filterBy) {
       case "title":
         filterSearch = { title: { $regex: `${search}`, $options: "i" } };
         break;
       case "keyword":
-        filterSearch = { keywords: { $regex: `${search}`, $options: "i" } };
+        keywordSearch = { keywordName: { $regex: `{search}`, $options: "i"}};
+        keywordIds = await Keyword.find( "_id", keywordSearch );
+        filterSearch = { keywords: { $in: keywordIds } }
         break;
       case "all":
+        keywordSearch = { keywordName: { $regex: `${search}`, $options: "i" } };
+        keywordIds = await Keyword.distinct("_id", keywordSearch);
         filterSearch = {
           $or: [
             { title: { $regex: `${search}`, $options: "i" } },
-            { keywords: { $regex: `${search}`, $options: "i" } },
+            { keywords: {$in: keywordIds} } ,
           ],
         };
         break;
@@ -602,7 +601,8 @@ export const getReference = async (req, res) => {
         let previewData = [];
         let previewURLs = files.flatMap(file => {
           if (file.type === "image"){
-            return file.previewURLs.map(url => ({ type: file.type, url }));
+            const imagePath = file.path.split(",");
+            return imagePath.map(url => ({ type: file.type, url }));
           } else if (file.type === "link"){
             return { type: file.type, url: file.previewURL }
           } else if (file.type === "pdf"){
@@ -640,9 +640,6 @@ export const getReference = async (req, res) => {
             creator: creatorList
               .map((id) => id.toString())
               .includes(item.collectionId.toString()),
-//            createAndShare: creatAndShareList
-//              .map((id) => id.toString())
-//              .includes(item.collectionId.toString()),
             viewer: viewerList
               .map((id) => id.toString())
               .includes(item.collectionId.toString()),
