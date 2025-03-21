@@ -94,6 +94,7 @@ export const verifyCode = async (req, res) => {
     }
 
     if (user.verificationCode !== parseInt(verificationCode, 10)) {
+      await User.deleteOne({ email });
       return res.status(400).send('인증번호가 일치하지 않습니다.');
     }
 
