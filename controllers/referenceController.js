@@ -249,6 +249,9 @@ export const updateReference = async (req, res) => {
 
     // 기존 파일 삭제 (레퍼런스 삭제 방식과 동일하게 적용)
     for (const file of filesToDelete) {
+      if (file.type === "pdf") {
+        await deleteFileByUrl(file.previewURL);
+      }
       if (file.type !== "link" && file.path) {
         if (typeof file.path === "string") {
           // 이미지 리스트 처리 (쉼표로 구분된 여러 개의 URL)
@@ -439,6 +442,9 @@ export const deleteReference = async (req, res) => {
 
     // S3에서 파일 삭제
     for (const file of reference.files) {
+      if(file.type === "pdf"){ // file이 pdf인 경우 pdf preview image 삭제 
+        deleteFileByUrl(file.previewURL);
+      }
       if (file.type !== "link" && file.path) {
         if (typeof file.path === "string") {
           // 이미지 리스트 처리: 쉼표(,)가 포함된 경우 개별 URL로 분리하여 삭제
@@ -711,19 +717,48 @@ async function getOGImage(url) {
 export const moveReferences = async (req, res) => {
   try {
     let { referenceIds, newCollection } = req.body;
-    const collection = await Collection.findOne({ title: newCollection });
+    let userId = req.user.id;
 
-    if (!collection) {
-      res.status(404).json({ message: "컬렉션이 존재하지 않습니다." });
+    let collection = await Collection.findOne({ 
+      title: newCollection,
+      createdBy: userId,
+     }); // 직접 생성한 컬렉션으로 이동하는 경우 
+
+    if (!collection) { // 직접 생성한 컬렉션이 존재하지 않는 경우 
+      collection = await Collection.find({
+        title: newCollection
+      })
+      let collectionIds;
+      if (!collection ){ 
+        res.status(404).json({ message: "컬렉션이 존재하지 않습니다." });
+      }
+      else { // 공유받은 컬렉션이 존재하는지 확인 
+        collectionIds = collection.map(col => col._id);
+        const isCollectionShared = await CollectionShare.findOne({
+          collectionId: { $in: collectionIds },
+          userId: userId,
+          role: "editor"
+        }) 
+        const newCollectionId = isCollectionShared.collectionId;
+        if (!isCollectionShared) { // 공유받은 컬렉션도 존재하지 않음 
+          res.status(404).json({ message: "권한을 가진 컬렉션이 존재하지 않습니다." });
+        } else { // 공유받은 컬렉션이 존재함 
+          await Reference.updateMany(
+            { _id: { $in: referenceIds } },
+            { $set: { collectionId: newCollectionId } }
+          );
+          res.status(200).json({ message: `레퍼런스를 이동하였습니다.` });
+        }
+      }
     } else {
-      const collectionId = collection._id;
-      const updatedReferences = await Reference.updateMany(
+      const newCollectionId = collection._id
+      await Reference.updateMany(
         { _id: { $in: referenceIds } },
-        { $set: { collectionId: collectionId } }
+        { $set: { collectionId: newCollectionId } }
       );
-
       res.status(200).json({ message: `레퍼런스를 이동하였습니다.` });
     }
+
   } catch (error) {
     res
       .status(500)
@@ -747,64 +782,36 @@ export const deleteReferences = async (req, res) => {
     // 레퍼런스 찾기
     const references = await Reference.find({ _id: { $in: referenceIds } });
     if (references.length !== referenceIds.length) {
-      return res
-        .status(404)
-        .json({ message: "해당 레퍼런스를 찾을 수 없습니다." });
-    }
-
-    const db = mongoose.connection.db; // MongoDB 연결 객체
-    const bucket = new mongoose.mongo.GridFSBucket(db, {
-      bucketName: "uploads",
-    });
-
-    // 첨부 자료 삭제
-    for (const reference of references) {
-      for (const file of reference.files) {
-        console.log("파일 데이터:", file); // 각 file 객체 출력
-        if (file.type === "file" || file.type === "pdf") {
-          try {
-            // path 값을 콤마로 분리하여 각각의 ID 처리
-            const objectIds = file.path.split(",").map((id) => id.trim()); // 콤마로 구분된 ID를 배열로 변환
-
-            for (const id of objectIds) {
-              if (mongoose.Types.ObjectId.isValid(id)) {
-                // ID가 유효한 ObjectId인지 확인
-                const objectId = new mongoose.Types.ObjectId(id);
-                await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
-                console.log(`기존 파일 삭제 완료: ${id}`);
-              } else {
-                console.warn(`유효하지 않은 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
-              }
-            }
-          } catch (error) {
-            console.error(`파일 삭제 실패: ${file.path}`, error.message);
+     return res
+      .status(404)
+      .json({ message: "해당 레퍼런스를 찾을 수 없습니다." });
+    } else {
+      for (const ref of references) {
+        // S3에서 파일 삭제
+        for (const file of ref.files) {
+          if(file.type === "pdf"){ // file이 pdf인 경우 pdf preview image 삭제 
+            deleteFileByUrl(file.previewURL);
           }
-        } else if (file.type === "image") {
-          try {
-            console.log("이미지 파일 ID 배열:", file.images);
-            // file.images 배열을 순회하여 각각의 ID 처리
-            for (const id of file.images) {
-              if (mongoose.Types.ObjectId.isValid(id)) {
-                // ID가 유효한 ObjectId인지 확인
-                const objectId = new mongoose.Types.ObjectId(id);
-                await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
-                console.log(`기존 이미지 파일 삭제 완료: ${id}`);
-              } else {
-                console.warn(`유효하지 않은 이미지 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
+          if (file.type !== "link" && file.path) {
+            if (typeof file.path === "string") {
+              // 이미지 리스트 처리: 쉼표(,)가 포함된 경우 개별 URL로 분리하여 삭제
+              const filePaths = file.path.includes(",")
+                ? file.path.split(",").map((path) => path.trim()) 
+                : [file.path];
+
+              for (const filePath of filePaths) {
+                await deleteFileByUrl(filePath);
               }
-            }
-          } catch (error) {
-            console.error(
-              `이미지 파일 삭제 실패: ${file.images}`,
-              error.message
-            );
+            } else {
+              await deleteFileByUrl(file.path);
+            }       
           }
         }
-      }
+        // Reference 삭제
+        await Reference.findByIdAndDelete(ref._id);
+       }
+      res.status(200).json({ message: "레퍼런스가 성공적으로 삭제되었습니다." });
     }
-    // 레퍼런스 삭제
-    await Reference.deleteMany({ _id: { $in: referenceIds } });
-    res.status(200).json({ message: "삭제가 완료되었습니다." });
   } catch (error) {
     console.log("레퍼런스 삭제 모드 오류:", error.message);
     res
