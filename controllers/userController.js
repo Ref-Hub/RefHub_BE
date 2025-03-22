@@ -57,13 +57,20 @@ export const authEmail = [
 
     try {
       const existingUser = await User.findOne({ email });
-      if (existingUser) {
+
+      if (existingUser && existingUser.password) {
         return res.status(400).send('이미 가입된 이메일입니다.');
       }
 
-      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
+      if (existingUser) {
+        existingUser.verificationCode = verificationCode;
+        existingUser.verificationExpires = verificationExpires;
+        await existingUser.save();
+      } else {
+        await User.create({ name, email, verificationCode, verificationExpires });
+      }
 
-      await User.create({ name, email, verificationCode, verificationExpires });
+      await sendVerificationEmail(name, email, verificationCode, '📁RefHub📁 회원가입 인증 번호');
 
       res.status(200).send('인증번호 메일이 전송되었습니다.');
     } catch (error) {
@@ -89,14 +96,17 @@ export const verifyCode = async (req, res) => {
     }
 
     if (user.verificationExpires < Date.now()) {
-      await User.deleteOne({ email });
       return res.status(400).send('인증번호가 만료되었습니다.');
     }
 
     if (user.verificationCode !== parseInt(verificationCode, 10)) {
-      await User.deleteOne({ email });
       return res.status(400).send('인증번호가 일치하지 않습니다.');
     }
+
+    // 인증 성공 처리
+    user.verificationCode = undefined;
+    user.verificationExpires = undefined;
+    await user.save();
 
     req.body.verifiedEmail = email;
 
