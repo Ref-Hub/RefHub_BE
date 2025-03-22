@@ -46,6 +46,11 @@ jobs:
         JWT_SECRET=${{ secrets.JWT_SECRET }}
         JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
         BASE_URL=${{ secrets.BASE_URL }}
+        S3_REGION=${{ secrets.S3_REGION }}
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}
+        S3_BASE_URL=${{ secrets.S3_BASE_URL }}
         EOF
 
         pm2 restart app
