@@ -1,9 +1,11 @@
 import Collection from "../models/Collection.js";
 import CollectionFavorite from "../models/CollectionFavorite.js";
 import CollectionShare from "../models/CollectionShare.js";
+import Reference from "../models/Reference.js";
+import Keyword from "../models/Keyword.js";
 
 import { StatusCodes } from "http-status-codes";
-import Reference from "../models/Reference.js";
+import { deleteFileByUrl } from "../middlewares/fileDelete.js";
 import { MongoError } from "mongodb";
 import mongoose from "mongoose";
 import ogs from "open-graph-scraper";
@@ -338,53 +340,26 @@ const deleteCollection = async (req, res, next) => {
       collectionId: { $in: collectionIdsToDelete },
     }).lean();
 
-    const db = mongoose.connection.db; // MongoDB 연결 객체
-    const bucket = new mongoose.mongo.GridFSBucket(db, {
-      bucketName: "uploads",
-    });
-
-    // 첨부 자료 삭제
+    // S3에서 파일 삭제
     for (const reference of references) {
       for (const file of reference.files) {
-        console.log("파일 데이터:", file); // 각 file 객체 출력
-        if (file.type === "file" || file.type === "pdf") {
-          try {
-            // path 값을 콤마로 분리하여 각각의 ID 처리
-            const objectIds = file.path.split(",").map((id) => id.trim()); // 콤마로 구분된 ID를 배열로 변환
+        if (file.type !== "link" && file.path) {
+          if (typeof file.path === "string") {
+            // 이미지 리스트 처리: 쉼표(,)가 포함된 경우 개별 URL로 분리하여 삭제
+            const filePaths = file.path.includes(",")
+              ? file.path.split(",").map((path) => path.trim())
+              : [file.path];
 
-            for (const id of objectIds) {
-              if (mongoose.Types.ObjectId.isValid(id)) {
-                // ID가 유효한 ObjectId인지 확인
-                const objectId = new mongoose.Types.ObjectId(id);
-                await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
-                console.log(`기존 파일 삭제 완료: ${id}`);
-              } else {
-                console.warn(`유효하지 않은 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
-              }
+            for (const filePath of filePaths) {
+              await deleteFileByUrl(filePath);
             }
-          } catch (err) {
-            console.error(`파일 삭제 실패: ${file.path}`, err.message);
-          }
-        } else if (file.type === "image") {
-          try {
-            console.log("이미지 파일 ID 배열:", file.images);
-            // file.images 배열을 순회하여 각각의 ID 처리
-            for (const id of file.images) {
-              if (mongoose.Types.ObjectId.isValid(id)) {
-                // ID가 유효한 ObjectId인지 확인
-                const objectId = new mongoose.Types.ObjectId(id);
-                await bucket.delete(objectId); // GridFS에서 해당 ObjectId 삭제
-                console.log(`기존 이미지 파일 삭제 완료: ${id}`);
-              } else {
-                console.warn(`유효하지 않은 이미지 ObjectId: ${id}`); // 유효하지 않은 ID 경고 출력
-              }
-            }
-          } catch (err) {
-            console.error(`이미지 파일 삭제 실패: ${file.images}`, err.message);
+          } else {
+            await deleteFileByUrl(file.path);
           }
         }
       }
     }
+
     await Promise.all([
       Reference.deleteMany({
         collectionId: { $in: collectionIdsToDelete },
