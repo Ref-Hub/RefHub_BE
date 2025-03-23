@@ -103,11 +103,6 @@ export const verifyCode = async (req, res) => {
       return res.status(400).send('인증번호가 일치하지 않습니다.');
     }
 
-    // 인증 성공 처리
-    user.verificationCode = undefined;
-    user.verificationExpires = undefined;
-    await user.save();
-
     req.body.verifiedEmail = email;
 
     res.status(200).send('인증번호가 확인되었습니다.');
