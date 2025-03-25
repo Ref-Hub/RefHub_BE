@@ -439,7 +439,18 @@ export const deleteReference = async (req, res) => {
     if (!reference) {
       return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
-
+    
+    // 키워드 사용 여부 확인 후 삭제
+        for (const keywordId of ref.keywords) {
+          const keywordUsed = await Reference.findOne({
+            _id: { $ne: ref._id },
+            keywords: keywordId
+          });
+          if (!keywordUsed) {
+            await Keyword.findByIdAndDelete(keywordId);
+          }
+        }
+    
     // S3에서 파일 삭제
     for (const file of reference.files) {
       if(file.type === "pdf"){ // file이 pdf인 경우 pdf preview image 삭제 
