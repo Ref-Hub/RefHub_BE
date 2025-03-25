@@ -231,12 +231,16 @@ export const loginUser = [
       );
 
       let refreshToken = null;
+
       if (autoLogin) {
         refreshToken = jwt.sign(
           { id: user._id, email: user.email },
           process.env.JWT_REFRESH_SECRET,
           { expiresIn: '7d' }
         );
+
+        user.token = refreshToken;
+        await user.save();
       }
 
       res.status(200).json({ message: '로그인이 완료되었습니다.', accessToken, refreshToken, autoLogin });
@@ -249,7 +253,24 @@ export const loginUser = [
 
 // 로그아웃 함수
 export const logoutUser = async (req, res) => {
-  res.status(200).send('로그아웃이 완료되었습니다.');
+  try {
+    await authenticate(req, res, async () => {
+      const { user } = req;
+
+      if (!user) {
+        return res.status(400).json({ error: "사용자 정보를 찾을 수 없습니다." });
+      }
+
+      user.token = "";
+
+      await user.save();
+
+      return res.status(200).json({ message: "로그아웃이 완료되었습니다." });
+    });
+  } catch (error) {
+    console.error("로그아웃 중 오류가 발생했습니다.:", error);
+    return res.status(500).send("로그아웃 중 오류가 발생했습니다.");
+  }
 };
 
 // 토큰 갱신 함수
@@ -262,17 +283,18 @@ export const refreshAccessToken = async (req, res) => {
 
   try {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findById(decoded.id);
 
     // 새로운 Access Token 발급
     const newAccessToken = jwt.sign(
-      { id: decoded.id, email: decoded.email },
+      { id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
     res.status(200).json({ accessToken: newAccessToken });
   } catch (error) {
-    res.status(403).send('토큰 갱신 중 오류가 발생했습니다. 유효하지 않은 Refresh Token입니다.');
+    res.status(403).send('유효하지 않은 Refresh Token입니다.');
   }
 };
 
