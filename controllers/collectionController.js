@@ -345,6 +345,17 @@ const deleteCollection = async (req, res, next) => {
 
     // 첨부 자료 삭제
     for (const reference of references) {
+      // 키워드 사용 여부 확인 후 삭제
+      for (const keywordId of reference.keywords) {
+        const keywordUsed = await Reference.findOne({
+          _id: { $ne: reference._id },
+          keywords: keywordId,
+        });
+        if (!keywordUsed) {
+          await Keyword.findByIdAndDelete(keywordId);
+        }
+      }
+
       for (const file of reference.files) {
         console.log("파일 데이터:", file); // 각 file 객체 출력
         if (file.type === "file" || file.type === "pdf") {
