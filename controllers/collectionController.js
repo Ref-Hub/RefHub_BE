@@ -342,6 +342,17 @@ const deleteCollection = async (req, res, next) => {
 
     // S3에서 파일 삭제
     for (const reference of references) {
+      // 키워드 사용 여부 확인 후 삭제
+      for (const keywordId of reference.keywords) {
+        const keywordUsed = await Reference.findOne({
+          _id: { $ne: reference._id },
+          keywords: keywordId,
+        });
+        if (!keywordUsed) {
+          await Keyword.findByIdAndDelete(keywordId);
+        }
+      }
+
       for (const file of reference.files) {
         if (file.type !== "link" && file.path) {
           if (typeof file.path === "string") {
