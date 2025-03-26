@@ -26,7 +26,9 @@ const deleteOldUsers = async () => {
     console.log(`🛠️ 삭제된 계정 수: ${deletedUsers.deletedCount}`);
   } catch (error) {
     console.error('7일이 지난 탈퇴 요청 계정 삭제 중 오류가 발생했습니다.:', error);
+  } finally {
+    process.exit(0);
   }
 };
 
-export default deleteOldUsers;
+deleteOldUsers();
