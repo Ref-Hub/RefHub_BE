@@ -443,7 +443,7 @@ export const deleteReference = async (req, res) => {
     // 키워드 사용 여부 확인 후 삭제
         for (const keywordId of reference.keywords) {
           const keywordUsed = await Reference.findOne({
-            _id: { $ne: ref._id },
+            _id: { $ne: reference._id },
             keywords: keywordId
           });
           if (!keywordUsed) {
