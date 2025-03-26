@@ -198,8 +198,16 @@ export const loginUser = [
         return res.status(404).send('등록되지 않은 이메일입니다.');
       }
 
-      // 탈퇴 요청 후 7일 이내에 로그인 시도 시 복구
-      if (user.deleteRequestDate && new Date() - user.deleteRequestDate < 7 * 24 * 60 * 60 * 1000) {
+      // 탈퇴 요청 후 7일이 지난 경우 계정 삭제 처리
+      if (user.deleteRequestDate) {
+        const timeElapsed = new Date() - user.deleteRequestDate;
+        
+        if (timeElapsed >= 7 * 24 * 60 * 60 * 1000) { // 7일
+          await User.deleteOne({ _id: user._id });
+          return res.status(400).send('계정이 삭제되었습니다. 다시 가입해주세요.');
+        }
+
+        // 7일 이내 로그인 시 계정 복구
         user.deleteRequestDate = undefined;
         await user.save();
       }
