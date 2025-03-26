@@ -21,7 +21,7 @@ const validateRole = check("role")
   });
 
 const validateName = check("name")
-  .matches(/^[가-힣a-zA-Z\s]+$/)
+  .matches(/^(?:[가-힣a-zA-Z\s]|[ㄱ-ㅎ]+)$/)
   .withMessage("이름은 한글, 영어만 사용할 수 있습니다.")
   .isLength({ max: 10 })
   .withMessage("이름은 최대 10글자까지 입력할 수 있습니다.");
