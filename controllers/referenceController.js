@@ -4,10 +4,11 @@ import Collection from "../models/Collection.js";
 import CollectionShare from "../models/CollectionShare.js";
 import CollectionFavorite from "../models/CollectionFavorite.js";
 import { deleteFileByUrl } from "../middlewares/fileDelete.js";
+import { deletePreviewByUrl } from "../middlewares/previewDelete.js";
 import { formatFileSize } from "../middlewares/fileUtil.js";
 import mongoose from "mongoose";
 import ogs from "open-graph-scraper";
-import { convertPdfToImage } from "../middlewares/convert.js";
+import { convertPdfToImage, savePreviewImage } from "../middlewares/convert.js";
 import { uploadFileToS3 } from "../middlewares/fileUpload.js";
 
 // 레퍼런스 추가 (추가 가능한 collection 리스트 조회)
@@ -138,9 +139,10 @@ export const addReference = async (req, res) => {
           : [req.files[key]];
 
         for (const image of images) {
-          const uploadedImage = await uploadFileToS3(image);
-          imagePaths.push(uploadedImage.url);
-          previewURLs.push(uploadedImage.url);
+          const uploadedImage = await uploadFileToS3(image); // 원본 사진 업로드 
+          const uploadedImagePreview = await savePreviewImage(image); // 프리뷰 업로드 
+          imagePaths.push(uploadedImage.url); // 원본 사진 저장 경로 
+          previewURLs.push(uploadedImagePreview.url); // 프리뷰 저장 경로 
           filenames.push(image.originalname);
         }
 
@@ -250,7 +252,11 @@ export const updateReference = async (req, res) => {
     // 기존 파일 삭제 (레퍼런스 삭제 방식과 동일하게 적용)
     for (const file of filesToDelete) {
       if (file.type === "pdf") {
-        await deleteFileByUrl(file.previewURL);
+        await deletePreviewByUrl(file.previewURL);
+      } else if (file.type === "image") {
+        for (const previewURL of file.previewURLs){
+          await deletePreviewByUrl(previewURL);
+        }
       }
       if (file.type !== "link" && file.path) {
         if (typeof file.path === "string") {
@@ -320,8 +326,10 @@ export const updateReference = async (req, res) => {
 
         const images = Array.isArray(req.files[key]) ? req.files[key].slice(0, 5) : [req.files[key]];
         for (const image of images) {
-          const uploadedImage = await uploadFileToS3(image);
-          imagePaths.push(uploadedImage.url);
+          const uploadedImage = await uploadFileToS3(image); // 원본 사진 업로드 
+          const uploadedImagePreview = await savePreviewImage(image); // 프리뷰 업로드 
+          imagePaths.push(uploadedImage.url); // 원본 사진 저장 경로 
+          previewURLs.push(uploadedImagePreview.url); // 프리뷰 저장 경로 
           filenames.push(image.originalname);
         }
 
@@ -454,7 +462,11 @@ export const deleteReference = async (req, res) => {
     // S3에서 파일 삭제
     for (const file of reference.files) {
       if(file.type === "pdf"){ // file이 pdf인 경우 pdf preview image 삭제 
-        deleteFileByUrl(file.previewURL);
+        deletePreviewByUrl(file.previewURL);
+      } else if (file.type === "image") {
+        for (const previewURL of file.previewURLs){
+          await deletePreviewByUrl(previewURL);
+        }
       }
       if (file.type !== "link" && file.path) {
         if (typeof file.path === "string") {
@@ -616,10 +628,11 @@ export const getReference = async (req, res) => {
         data.map( async (item, index) => {
         const { memo, files, ...obj } = item.toObject();
         let previewData = [];
-        let previewURLs = files.flatMap(file => {
+        let URLs = files.flatMap(file => {
           if (file.type === "image"){
-            const imagePath = file.path.split(",");
-            return imagePath.map(url => ({ type: file.type, url }));
+            //const imagePath = file.path.split(",");
+            //return imagePath.map(url => ({ type: file.type, url }));
+            return file.previewURLs.map(url => ({ type: file.type, url }));
           } else if (file.type === "link"){
             return { type: file.type, url: file.previewURL }
           } else if (file.type === "pdf"){
@@ -628,7 +641,7 @@ export const getReference = async (req, res) => {
             return [];
           }
         })
-        for (const file of previewURLs) {
+        for (const file of URLs) {
           if (file.type === "link") {
             try {
               const url = file.url;
@@ -801,7 +814,11 @@ export const deleteReferences = async (req, res) => {
         // S3에서 파일 삭제
         for (const file of ref.files) {
           if(file.type === "pdf"){ // file이 pdf인 경우 pdf preview image 삭제 
-            deleteFileByUrl(file.previewURL);
+            deletePreviewByUrl(file.previewURL);
+          } else if (file.type === "image") {
+            for (const previewURL of file.previewURLs){
+              await deletePreviewByUrl(previewURL);
+            }
           }
           if (file.type !== "link" && file.path) {
             if (typeof file.path === "string") {

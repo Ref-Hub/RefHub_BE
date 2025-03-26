@@ -18,6 +18,7 @@ const referenceSchema = new mongoose.Schema({
       },
       path: { type: String, required: true }, // GridFS ObjectID 대신 S3 URL 저장
       size: { type: String, required: true },
+      previewURLs: {type: [String]},
       previewURL: { type: String },
       filenames: { type: [String] },
       filename: { type: String },
