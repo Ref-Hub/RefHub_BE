@@ -215,7 +215,14 @@ export const addReference = async (req, res) => {
 
     await reference.save();
 
-    res.status(201).json({ message: "레퍼런스가 등록되었습니다.", reference });
+    // 키워드 이름 조회
+    const populatedKeywords = await Keyword.find({ _id: { $in: reference.keywords } }).lean();
+    const keywordNames = populatedKeywords.map(k => k.keywordName);
+
+    res.status(201).json({ message: "레퍼런스가 등록되었습니다.", reference: {
+      ...reference.toObject(),
+      keywords: keywordNames,
+    } });
   } catch (err) {
     console.error("Error during reference creation:", err.message);
     res.status(500).json({ error: err.message });
@@ -380,7 +387,15 @@ export const updateReference = async (req, res) => {
     reference.files = [...filesToKeep, ...newFiles];
 
     await reference.save();
-    res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference });
+
+    // 키워드 이름 조회
+    const populatedKeywords = await Keyword.find({ _id: { $in: reference.keywords } }).lean();
+    const keywordNames = populatedKeywords.map(k => k.keywordName);
+    
+    res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference: {
+      ...reference.toObject(),
+      keywords: keywordNames,
+    } });
 
   } catch (err) {
     console.error("Error during reference update:", err.message);
