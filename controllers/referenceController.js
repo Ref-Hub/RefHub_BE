@@ -191,11 +191,6 @@ export const addReference = async (req, res) => {
           return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
-        const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
-        if (allowedExtensions.includes(file.originalname.split(".").pop().toLowerCase())) {
-          return res.status(400).json({ error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다." });
-        }
-
         const uploadedFile = await uploadFileToS3(file);
         files.push({
           type: "file",
