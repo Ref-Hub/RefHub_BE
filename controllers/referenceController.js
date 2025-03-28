@@ -22,38 +22,40 @@ export const getColList = async (req, res) => {
     let editorCollSearch = { userId: userId, role: "editor" };
     let favoriteSearch = { userId: userId, isFavorite: true };
 
-    let createCol = await Collection.distinct("_id", collectionSearch).lean();
+    let createCol = await Collection.distinct("_id", collectionSearch);
     let editorCol = await CollectionShare.distinct(
       "collectionId",
       editorCollSearch
-    ).lean();
+    );
     let favoriteCol = await CollectionFavorite.distinct(
       "collectionId",
       favoriteSearch
-    ).lean();
+    );
     let allCol = [...new Set([...createCol, ...editorCol])];
     let notFavoriteCol = allCol.filter((id) => !favoriteCol.includes(id));
 
-    let FavoriteTitle = await Collection.distinct("title", {
-      _id: { $in: favoriteCol },
-    }).lean();
+    let FavoriteTitle = await Collection.find(
+      { _id: { $in: favoriteCol }},
+      { _id: 1, title: 1}
+    ).lean();
     FavoriteTitle.sort((a, b) => {
-      return a - b || a.toString().localeCompare(b.toString());
+      return a.title - b.title || a.title.toString().localeCompare(b.title.toString());
     });
 
-    let notFavoriteTitle = await Collection.distinct("title", {
-      _id: { $in: notFavoriteCol },
-    }).lean();
+    let notFavoriteTitle = await Collection.find(
+      { _id: { $in: notFavoriteCol }},
+      { _id: 1, title: 1}
+    ).lean();
     notFavoriteTitle.sort((a, b) => {
-      return a - b || a.toString().localeCompare(b.toString());
+      return a.title - b.title || a.title.toString().localeCompare(b.title.toString());
     });
 
-    let colTitle = [...new Set([...FavoriteTitle, ...notFavoriteTitle])];
+    let col = [...new Set([...FavoriteTitle, ...notFavoriteTitle])];
 
-    if (colTitle.length == 0) {
+    if (col.length == 0) {
       res.status(404).json({ message: "컬렉션이 존재하지 않습니다." });
     } else {
-      res.status(200).json({ colTitle, message: "컬렉션이 조회되었습니다." });
+      res.status(200).json({ col, message: "컬렉션이 조회되었습니다." });
     }
   } catch (error) {
     res
