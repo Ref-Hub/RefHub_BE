@@ -46,7 +46,6 @@ const sendVerificationEmail = async (name, email, verificationCode, subject) => 
 
 // 이메일 인증 함수
 export const authEmail = [
-  validateName,
   validateEmail,
   validateMiddleware,
   async (req, res) => {
