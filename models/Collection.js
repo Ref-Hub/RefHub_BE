@@ -28,10 +28,11 @@ collSchema.virtual("share", {
   justOne: true,
 });
 
-// Index 설정 (createdBy와 title의 조합을 유니크로 설정)
+// Index 설정
+collSchema.index({ createdBy: 1, title: 1 });
+
 const Collection =
   mongoose.models.Collection ||
   mongoose.model("Collection", collSchema, "collections");
 
-Collection.collection.dropIndex({ createdBy: 1, title: 1 });
 export default Collection;
