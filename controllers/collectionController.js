@@ -183,6 +183,7 @@ const getCollection = async (req, res, next) => {
 
         const role = await CollectionShare.findOne({
           collectionId: item._id,
+          userId: user,
         }).distinct("role");
 
         const isShared = await checkIfShared(item._id);
