@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import ogs from "open-graph-scraper";
 import { convertPdfToImage, savePreviewImage } from "../middlewares/convert.js";
 import { uploadFileToS3 } from "../middlewares/fileUpload.js";
+import { hasEditorAccess, hasViewerAccess } from "../middlewares/permission.js";
 
 // 레퍼런스 추가 (추가 가능한 collection 리스트 조회)
 export const getColList = async (req, res) => {
@@ -64,19 +65,25 @@ export const getColList = async (req, res) => {
 // 레퍼런스 추가
 export const addReference = async (req, res) => {
   try {
-    const { collectionTitle, title, keywords, memo, links } = req.body;
+    const { collectionId, title, keywords, memo, links } = req.body;
 
     // 유저 인증 확인
     const userId = req.user.id;
 
     // Collection 확인
     const collection = await Collection.findOne({
-      title: collectionTitle,
+      title: collectionId, // title에서 id로 컬렉션 찾기 변경
       createdBy: userId,
     });
 
     if (!collection) {
       return res.status(404).json({ error: "해당 콜렉션을 찾을 수 없습니다." });
+    }
+
+    // 권한 확인 (생성자 또는 editor)
+    const hasAccess = await hasEditorAccess(userId, collectionId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "레퍼런스를 추가할 권한이 없습니다." });
     }
 
     // 키워드 처리: 기존 키워드는 그대로 사용, 새로운 키워드는 추가
@@ -221,6 +228,8 @@ export const addReference = async (req, res) => {
 
     res.status(201).json({ message: "레퍼런스가 등록되었습니다.", reference: {
       ...reference.toObject(),
+      collectionId: reference.collectionId,
+      collectionTitle: collection.title,
       keywords: keywordNames,
     } });
   } catch (err) {
@@ -240,6 +249,12 @@ export const updateReference = async (req, res) => {
     const reference = await Reference.findById(referenceId);
     if (!reference) {
       return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    }
+
+    // 권한 확인 (생성자 또는 editor)
+    const hasAccess = await hasEditorAccess(userId, reference.collectionId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "레퍼런스를 수정할 권한이 없습니다." });
     }
 
     // 클라이언트에서 유지할 기존 파일 정보 파싱
@@ -407,6 +422,7 @@ export const updateReference = async (req, res) => {
 export const getReferenceDetail = async (req, res) => {
   try {
     const { referenceId } = req.params;
+    const userId = req.user.id;
 
     // 레퍼런스 찾기
     const reference = await Reference.findById(referenceId)
@@ -418,6 +434,9 @@ export const getReferenceDetail = async (req, res) => {
         .status(404)
         .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
+
+    // 최초 생성자, editor, viewer 모두 접근 가능
+    const hasAccess = await hasViewerAccess(userId, reference.collectionId._id);
 
     // 응답 데이터 구성
     const referenceDetail = {
@@ -451,11 +470,18 @@ export const getReferenceDetail = async (req, res) => {
 export const deleteReference = async (req, res) => {
   try {
     const { referenceId } = req.params;
+    const userId = req.user.id;
 
     // Reference 찾기
     const reference = await Reference.findById(referenceId);
     if (!reference) {
       return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+    }
+
+    // 권한 확인 (생성자 또는 editor)
+    const hasAccess = await hasEditorAccess(userId, reference.collectionId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "레퍼런스를 삭제할 권한이 없습니다." });
     }
     
     // 키워드 사용 여부 확인 후 삭제
