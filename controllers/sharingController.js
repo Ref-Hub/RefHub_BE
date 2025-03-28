@@ -126,7 +126,7 @@ const getSharedUsers = async (req, res, next) => {
 const updateSharedUsers = async (req, res, next) => {
   const collectionId = req.params.collectionId;
   const user = req.user.id;
-  const { email, role } = req.body;
+  const { email, role = 'viewer'} = req.body;
 
   try {
     const collection = await Collection.findOne({
