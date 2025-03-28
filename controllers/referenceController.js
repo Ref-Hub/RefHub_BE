@@ -191,11 +191,6 @@ export const addReference = async (req, res) => {
           return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
-        const allowedExtensions = ["jpg", "jpeg", "png", "pdf"];
-        if (allowedExtensions.includes(file.originalname.split(".").pop().toLowerCase())) {
-          return res.status(400).json({ error: "이미지 및 PDF 파일은 기타 파일로 처리할 수 없습니다." });
-        }
-
         const uploadedFile = await uploadFileToS3(file);
         files.push({
           type: "file",
@@ -220,7 +215,14 @@ export const addReference = async (req, res) => {
 
     await reference.save();
 
-    res.status(201).json({ message: "레퍼런스가 등록되었습니다.", reference });
+    // 키워드 이름 조회
+    const populatedKeywords = await Keyword.find({ _id: { $in: reference.keywords } }).lean();
+    const keywordNames = populatedKeywords.map(k => k.keywordName);
+
+    res.status(201).json({ message: "레퍼런스가 등록되었습니다.", reference: {
+      ...reference.toObject(),
+      keywords: keywordNames,
+    } });
   } catch (err) {
     console.error("Error during reference creation:", err.message);
     res.status(500).json({ error: err.message });
@@ -385,7 +387,15 @@ export const updateReference = async (req, res) => {
     reference.files = [...filesToKeep, ...newFiles];
 
     await reference.save();
-    res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference });
+
+    // 키워드 이름 조회
+    const populatedKeywords = await Keyword.find({ _id: { $in: reference.keywords } }).lean();
+    const keywordNames = populatedKeywords.map(k => k.keywordName);
+    
+    res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference: {
+      ...reference.toObject(),
+      keywords: keywordNames,
+    } });
 
   } catch (err) {
     console.error("Error during reference update:", err.message);
@@ -811,6 +821,18 @@ export const deleteReferences = async (req, res) => {
       .json({ message: "해당 레퍼런스를 찾을 수 없습니다." });
     } else {
       for (const ref of references) {
+
+        // 키워드 삭제 
+        for (const keywordId of ref.keywords) {
+          const keywordUsed = await Reference.findOne({
+            _id: { $ne: ref._id },
+            keywords: keywordId
+          });
+          if (!keywordUsed) {
+            await Keyword.findByIdAndDelete(keywordId);
+          }
+        }
+
         // S3에서 파일 삭제
         for (const file of ref.files) {
           if(file.type === "pdf"){ // file이 pdf인 경우 pdf preview image 삭제 

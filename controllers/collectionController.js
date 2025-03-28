@@ -6,6 +6,7 @@ import Keyword from "../models/Keyword.js";
 
 import { StatusCodes } from "http-status-codes";
 import { deleteFileByUrl } from "../middlewares/fileDelete.js";
+import { deletePreviewByUrl } from "../middlewares/previewDelete.js";
 import { MongoError } from "mongodb";
 import mongoose from "mongoose";
 import ogs from "open-graph-scraper";
@@ -340,7 +341,7 @@ const deleteCollection = async (req, res, next) => {
       collectionId: { $in: collectionIdsToDelete },
     }).lean();
 
-    // S3에서 파일 삭제
+    // 레퍼런스 관련 삭제
     for (const reference of references) {
       // 키워드 사용 여부 확인 후 삭제
       for (const keywordId of reference.keywords) {
@@ -353,7 +354,16 @@ const deleteCollection = async (req, res, next) => {
         }
       }
 
+      // S3에서 파일 삭제
       for (const file of reference.files) {
+        if (file.type === "pdf") {
+          // file이 pdf인 경우 pdf preview image 삭제
+          deletePreviewByUrl(file.previewURL);
+        } else if (file.type === "image") {
+          for (const previewURL of file.previewURLs) {
+            await deletePreviewByUrl(previewURL);
+          }
+        }
         if (file.type !== "link" && file.path) {
           if (typeof file.path === "string") {
             // 이미지 리스트 처리: 쉼표(,)가 포함된 경우 개별 URL로 분리하여 삭제
