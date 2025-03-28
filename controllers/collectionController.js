@@ -288,9 +288,9 @@ const updateCollection = async (req, res, next) => {
       { new: true, runValidators: true }
     );
 
-    if (collectionUpdate) {
+    if (!collectionUpdate) {
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-        error: "수정 중 오류가 발생했습니다.",
+        error: "해당 컬렉션을 찾을 수 없거나, 수정할 내용이 없습니다.",
       });
     }
 
