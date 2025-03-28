@@ -24,17 +24,17 @@ const createCollection = async (req, res, next) => {
     const { title } = req.body;
     const user = req.user.id;
 
-    // 공유 받은 컬렉션 검사
-    const sharedCollection = await CollectionShare.find({
+    // 공유 받은 컬렉션 확인
+    const sharedCollectionIds = await CollectionShare.distinct("collectionId", {
       userId: user,
     }).lean();
 
-    const sharedTitles = await Promise.all(
-      sharedCollection.map(async (share) => {
-        const collection = await Collection.findById(share.collectionId).lean();
-        return collection ? collection.title : null;
-      })
-    );
+    const sharedTitles = await Collection.find({
+      _id: { $in: sharedCollectionIds },
+    })
+      .lean()
+      .distinct("title");
+
     if (sharedTitles.includes(title)) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "이미 동일한 이름의 컬렉션이 있습니다.",
@@ -45,7 +45,7 @@ const createCollection = async (req, res, next) => {
     const collectionExists = await Collection.exists({
       title: title,
       createdBy: user,
-    });
+    }).lean();
     if (collectionExists) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "이미 동일한 이름의 컬렉션이 있습니다.",
@@ -188,7 +188,7 @@ const getCollection = async (req, res, next) => {
 
         const isShared = await checkIfShared(item._id);
         const isCreator = item.createdBy.toString() === user;
-        const isViewer = !isCreator && role[0] === "viewer";
+        const isViewer = !isCreator && role[0] === "viewer"; // 이거 !isCreator 안 해도 되지 않나?
         const isEditor = !isCreator && role[0] === "editor";
 
         return {
@@ -227,7 +227,7 @@ const updateCollection = async (req, res, next) => {
   const user = req.user.id;
 
   try {
-    /*
+    // 컬렉션 존재 확인
     const collection = await Collection.findById(collectionId);
     if (!collection) {
       return res.status(StatusCodes.NOT_FOUND).json({
@@ -235,51 +235,64 @@ const updateCollection = async (req, res, next) => {
       });
     }
 
-    const owner = collection.createdBy;
-    */
-
-    // 공유 중인 컬렉션 찾기
-    const sharedCollection = await CollectionShare.find({
+    // 권한 확인. 생성자 또는 에디터면 OK
+    const role = await CollectionShare.findOne({
+      collectionId: collectionId,
       userId: user,
-    }).lean();
+    }).distinct("role");
 
-    // 공유 받은 컬렉션 타이틀 추출해서 배열에 담기
-    const sharedTitles = await Promise.all(
-      sharedCollection.map(async (share) => {
-        const collection = await Collection.findById(share.collectionId).lean();
-        return collection ? collection.title : null;
-      })
-    );
+    const owner = collection.createdBy;
+    const isOwner = owner.toString() === user;
+    const isEditor = role[0] === "editor";
 
-    // 만약 배열에 이름이 있다면 변경 불가
+    if (isOwner && isEditor) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "존재하지 않습니다.",
+      });
+    }
+
+    // 공유 받은 컬렉션 확인
+    const sharedCollectionIds = await CollectionShare.find({
+      userId: user,
+    })
+      .lean()
+      .distinct("collectionId");
+
+    const sharedTitles = await Collection.find({
+      _id: { $in: sharedCollectionIds },
+    })
+      .lean()
+      .distinct("title");
+
     if (sharedTitles.includes(title)) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
 
-    /*
-    // 현재 내 컬렉션에서 조회
-    const existCollection = await Collection.findOne({
+    // 생성했던 컬렉션 검사
+    const collectionExists = await Collection.exists({
       title: title,
-    })
-      .lean()
-      .distinct("collectionId");
-
-    // 이름이 있다면 수정 불가
-    if (existCollection != null) {
+      createdBy: user,
+    }).lean();
+    if (collectionExists) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
-      */
 
     // 컬렉션 수정
     const collectionUpdate = await Collection.findOneAndUpdate(
-      { _id: collectionId, createdBy: user },
+      { _id: collectionId, createdBy: owner },
       { $set: { title: title } },
       { new: true, runValidators: true }
     );
+
+    if (collectionUpdate) {
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        error: "수정 중 오류가 발생했습니다.",
+      });
+    }
 
     return res.status(StatusCodes.OK).json(collectionUpdate);
   } catch (err) {
