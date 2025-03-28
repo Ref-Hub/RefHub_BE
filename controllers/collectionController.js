@@ -37,7 +37,7 @@ const createCollection = async (req, res, next) => {
     );
     if (sharedTitles.includes(title)) {
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "공유 중인 컬렉션과 중복된 이름입니다.",
+        error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
 
@@ -48,7 +48,7 @@ const createCollection = async (req, res, next) => {
     });
     if (collectionExists) {
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "중복된 이름입니다.",
+        error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
 
@@ -187,8 +187,8 @@ const getCollection = async (req, res, next) => {
 
         const isShared = await checkIfShared(item._id);
         const isCreator = item.createdBy.toString() === user;
-        const isViewer = role[0] === "viewer";
-        const isEditor = role[0] === "editor";
+        const isViewer = !isCreator && role[0] === "viewer";
+        const isEditor = !isCreator && role[0] === "editor";
 
         return {
           _id: item._id,
@@ -226,11 +226,23 @@ const updateCollection = async (req, res, next) => {
   const user = req.user.id;
 
   try {
-    // 공유 중인 컬렉션 검사
+    /*
+    const collection = await Collection.findById(collectionId);
+    if (!collection) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "존재하지 않습니다.",
+      });
+    }
+
+    const owner = collection.createdBy;
+    */
+
+    // 공유 중인 컬렉션 찾기
     const sharedCollection = await CollectionShare.find({
       userId: user,
     }).lean();
 
+    // 공유 받은 컬렉션 타이틀 추출해서 배열에 담기
     const sharedTitles = await Promise.all(
       sharedCollection.map(async (share) => {
         const collection = await Collection.findById(share.collectionId).lean();
@@ -238,30 +250,41 @@ const updateCollection = async (req, res, next) => {
       })
     );
 
+    // 만약 배열에 이름이 있다면 변경 불가
     if (sharedTitles.includes(title)) {
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "공유 중인 컬렉션과 중복된 이름입니다.",
+        error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
 
+    /*
+    // 현재 내 컬렉션에서 조회
+    const existCollection = await Collection.findOne({
+      title: title,
+    })
+      .lean()
+      .distinct("collectionId");
+
+    // 이름이 있다면 수정 불가
+    if (existCollection != null) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "이미 동일한 이름의 컬렉션이 있습니다.",
+      });
+    }
+      */
+
     // 컬렉션 수정
-    const collection = await Collection.findOneAndUpdate(
+    const collectionUpdate = await Collection.findOneAndUpdate(
       { _id: collectionId, createdBy: user },
       { $set: { title: title } },
       { new: true, runValidators: true }
     );
 
-    if (!collection) {
-      return res.status(StatusCodes.NOT_FOUND).json({
-        error: "존재하지 않습니다.",
-      });
-    }
-
-    return res.status(StatusCodes.OK).json(collection);
+    return res.status(StatusCodes.OK).json(collectionUpdate);
   } catch (err) {
     if (err instanceof MongoError && err.code === 11000) {
       return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "중복된 이름입니다.",
+        error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
     next(err);
