@@ -626,8 +626,9 @@ export const getReference = async (req, res) => {
         filterSearch = { title: { $regex: `${search}`, $options: "i" } };
         break;
       case "keyword":
-        keywordSearch = { keywordName: { $regex: `{search}`, $options: "i"}};
-        keywordIds = await Keyword.find( "_id", keywordSearch );
+        keywordIds = await Keyword.find(
+          { keywordName: { $regex: `{search}`, $options: "i"}}
+        ).select("_id");
         filterSearch = { keywords: { $in: keywordIds } }
         break;
       case "all":
@@ -664,8 +665,15 @@ export const getReference = async (req, res) => {
       // 결과 데이터 변환
       let finalData = await Promise.all(
         data.map( async (item, index) => {
-        const { memo, files, ...obj } = item.toObject();
+        const { memo, files, keywords, ...obj } = item.toObject();
         let previewData = [];
+        let keywordList = [];
+        for (const keywordId of keywords) {
+          const keyword = await Keyword.findById(keywordId).select("keywordName");
+          if (keyword) {
+            keywordList.push(keyword.keywordName);
+          }
+        }
         let URLs = files.flatMap(file => {
           if (file.type === "image"){
             //const imagePath = file.path.split(",");
@@ -702,6 +710,7 @@ export const getReference = async (req, res) => {
           return {
             ...obj,
             number: index + 1,
+            keywords: keywordList,
             shared: sharedList
               .map((id) => id.toString())
               .includes(item.collectionId.toString()),
