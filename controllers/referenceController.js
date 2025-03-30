@@ -74,12 +74,12 @@ export const addReference = async (req, res) => {
 
     // Collection 확인
     const collection = await Collection.findOne({
-      title: collectionId, // title에서 id로 컬렉션 찾기 변경
+      _id: collectionId, // title에서 id로 컬렉션 찾기 변경
       createdBy: userId,
     });
 
     if (!collection) {
-      return res.status(404).json({ error: "해당 콜렉션을 찾을 수 없습니다." });
+      return res.status(404).json({ error: "해당 컬렉션을 찾을 수 없습니다." });
     }
 
     // 권한 확인 (생성자 또는 editor)
