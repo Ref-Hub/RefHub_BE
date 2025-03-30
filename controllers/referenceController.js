@@ -626,14 +626,15 @@ export const getReference = async (req, res) => {
         filterSearch = { title: { $regex: `${search}`, $options: "i" } };
         break;
       case "keyword":
-        keywordIds = await Keyword.find(
-          { keywordName: { $regex: `{search}`, $options: "i"}}
-        ).select("_id");
+        keywordSearch = { keywordName: { $regex: `${search}`, $options: "i"}};
+        keywordIds = await Keyword.distinct( "_id", keywordSearch );
+        console.log("keywordIds: ",keywordIds);
         filterSearch = { keywords: { $in: keywordIds } }
         break;
       case "all":
         keywordSearch = { keywordName: { $regex: `${search}`, $options: "i" } };
         keywordIds = await Keyword.distinct("_id", keywordSearch);
+        console.log("keywordIds: ", keywordIds);
         filterSearch = {
           $or: [
             { title: { $regex: `${search}`, $options: "i" } },
@@ -669,10 +670,8 @@ export const getReference = async (req, res) => {
         let previewData = [];
         let keywordList = [];
         for (const keywordId of keywords) {
-          const keyword = await Keyword.findById(keywordId).select("keywordName");
-          if (keyword) {
-            keywordList.push(keyword.keywordName);
-          }
+          const keyword = await Keyword.findById(keywordId);
+          keywordList.push(keyword.keywordName);
         }
         let URLs = files.flatMap(file => {
           if (file.type === "image"){
