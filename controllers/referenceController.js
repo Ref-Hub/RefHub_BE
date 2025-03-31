@@ -244,7 +244,7 @@ export const addReference = async (req, res) => {
 export const updateReference = async (req, res) => {
   try {
     const { referenceId } = req.params;
-    const { collectionTitle, title, keywords, memo, links, existingFiles, existingKeywords } = req.body;
+    const { collectionId, title, keywords, memo, links, existingFiles, existingKeywords } = req.body;
     const userId = req.user.id;
 
     // 기존 Reference 가져오기
@@ -412,6 +412,7 @@ export const updateReference = async (req, res) => {
     res.status(200).json({ message: "레퍼런스가 수정되었습니다.", reference: {
       ...reference.toObject(),
       keywords: keywordNames,
+      collectionId: reference.collectionId,
     } });
 
   } catch (err) {
@@ -443,6 +444,7 @@ export const getReferenceDetail = async (req, res) => {
     // 응답 데이터 구성
     const referenceDetail = {
       collectionTitle: reference.collectionId.title, // 컬렉션 이름
+      collectionId: reference.collectionId._id, // 컬렉션 ID
       referenceTitle: reference.title, // 레퍼런스 이름
       keywords: reference.keywords.map(k => k.keywordName), // 키워드
       memo: reference.memo, // 메모
