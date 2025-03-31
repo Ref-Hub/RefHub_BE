@@ -24,9 +24,8 @@ const referenceSchema = new mongoose.Schema({
       filename: { type: String },
     },
   ],  
-  createdAt: { type: Date, default: Date.now },
 },
-  { versionKey: "__v", optimisticConcurrency: true }
+  { versionKey: "__v", optimisticConcurrency: true, timestamps: true, }
 );
 
 function keywordsValidation(keywords) {
