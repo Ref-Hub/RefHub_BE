@@ -441,6 +441,14 @@ export const getReferenceDetail = async (req, res) => {
     // 최초 생성자, editor, viewer 모두 접근 가능
     const hasAccess = await hasViewerAccess(userId, reference.collectionId._id);
 
+    // 한국 표준 시간 변환 함수
+    const toKSTString = (date) => {
+      return new Date(date.getTime() + 9 * 60 * 60 * 1000) // UTC → KST
+        .toISOString()
+        .replace('T', ' ')
+        .substring(0, 19); // 보기 좋은 문자열 형태로 자르기
+    };
+
     // 응답 데이터 구성
     const referenceDetail = {
       collectionTitle: reference.collectionId.title, // 컬렉션 이름
@@ -458,6 +466,8 @@ export const getReferenceDetail = async (req, res) => {
         filenames: file.filenames || null, // 이미지리스트 원본 파일명 포함
         filename: file.filename || null, // PDF, 기타파일 원본 파일 이름 포함
       })),
+      createdAt: toKSTString(reference.createdAt),
+      updatedAt: reference.updatedAt && toKSTString(reference.updatedAt),
       version: reference.__v,
     };
 
