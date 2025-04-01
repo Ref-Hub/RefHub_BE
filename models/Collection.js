@@ -21,13 +21,6 @@ const collSchema = new mongoose.Schema(
   }
 );
 
-collSchema.virtual("share", {
-  ref: "CollectionShare",
-  localField: "_id",
-  foreignField: "collectionId",
-  justOne: true,
-});
-
 // Index 설정
 collSchema.index({ createdBy: 1, title: 1 });
 
