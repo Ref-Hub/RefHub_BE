@@ -176,10 +176,11 @@ const getCollection = async (req, res, next) => {
               case "link":
                 return await getOGImage(file.previewURL);
               case "image":
+                return file.previewURLs?.[0] || null;
               case "pdf":
               case "otherfiles":
               default:
-                return file.previewURLs?.[0] || file.previewURL;
+                return file.previewURL || null;
             }
           })
         );
