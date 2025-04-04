@@ -156,28 +156,6 @@ const getCollection = async (req, res, next) => {
           }
           if (URLs.length >= 4) break;
         }
-        /*
-        const URLs =
-          relevantReferences.flatMap((ref) => {
-            if (Array.isArray(ref.files)) {
-              return ref.files.flatMap((file) => {
-                switch (file.type) {
-                  case "image":
-                    return file.previewURLs.map((url) => ({
-                      type: file.type,
-                      url,
-                    }));
-                  case "link":
-                  case "pdf":
-                    return { type: file.type, url: file.previewURL };
-                  default:
-                    return [];
-                }
-              });
-            }
-            return [];
-          }) || [];
-           */
 
         let previewImages = await Promise.all(
           URLs.map(async (file) => {
@@ -197,49 +175,6 @@ const getCollection = async (req, res, next) => {
             }
           })
         );
-        /*
-        for (const file of URLs) {
-          if (previewImages.length >= 4) break;
-          try {
-            switch (file.type) {
-              case "link":
-                previewImages.push(await getOGImage(file.url));
-                break;
-              case "image":
-              case "pdf":
-                previewImages.push(file.url);
-                break;
-              default:
-                previewImages.push(null);
-                break;
-            }
-          } catch (err) {
-            console.error(`OGS error for ${file.url}`, err);
-            previewImages.push(null);
-          }
-        }
-          */
-
-        /*
-        // 프리뷰 이미지
-        const previewImages = await Promise.all(
-          relevantReferences.map(async (reference) => {
-            const file = reference.files[0];
-            if (!file) return null;
-
-            switch (file.type) {
-              case "link":
-                return await getOGImage(file.previewURL);
-              case "image":
-                return file.previewURLs?.[0] || null;
-              case "pdf":
-              case "otherfiles":
-              default:
-                return file.previewURL || null;
-            }
-          })
-        );
-        */
 
         const sharedEntry = collectionShared.find(
           (share) =>
