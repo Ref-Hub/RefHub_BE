@@ -1,59 +1,43 @@
-import express from 'express';
-import Reference from '../models/Reference.js'
+import express from "express";
+import {
+  getColList,
+  addReference,
+  updateReference,
+  getReference,
+  getReferenceDetail,
+  deleteReference,
+  deleteReferences,
+  moveReferences,
+} from "../controllers/referenceController.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { upload } from "../middlewares/fileUpload.js";
+import { downloadFileFromS3 } from "../middlewares/fileDownload.js";
 
 const router = express.Router();
 
-// 에러 처리 핸들러
-function asyncHandler(handler) {
-    return async function (req, res) {
-        try {
-            await handler(req, res);
-        } catch (e) {
-            if (e.name === 'ValidationError') {
-                res.status(400).send({ message: e.message });
-            } else if (e.name === 'CastError') {
-                res.status(404).send({ message: 'Cannot find given id.' });
-            } else {
-                res.status(500).send({ message: e.message });
-            }
-        }
-    };
-}
+// 파일 다운로드
+router.get("/download", authMiddleware, downloadFileFromS3);
 
-//레퍼런스 추가 API
-router.post('/add', async (req, res) => {
-    try {
-      const { category, title, keywords, memo, resources } = req.body;
-      const newReference = new Reference({
-        category,
-        title,
-        keywords,
-        memo,
-        resources,
-      });
-      await newReference.save();
-      res.status(201).json({ message: '레퍼런스 추가 성공', reference: newReference });
-    } catch (error) {
-      res.status(500).json({ message: '레퍼런스 추가 오류', error });
-    }
-  });
+// 레퍼런스 추가
+router.post("/add", authMiddleware, upload, addReference);
+router.get("/add", authMiddleware, getColList);
 
-  //레퍼런스 수정 API
-  router.put('/:id', async (req, res) => {
-    try {
-      const { category, title, keywords, memo, resources } = req.body;
-      const updatedReference = await Reference.findByIdAndUpdate(
-        req.params.id,
-        { category, title, keywords, memo, resources },
-        { new: true }
-      );
-      if (!updatedReference) {
-        return res.status(404).json({ message: '레퍼런스를 찾지 못하였습니다.' });
-      }
-      res.status(200).json({ message: '레퍼런스가 성공적으로 수정되었습니다.', reference: updatedReference });
-    } catch (error) {
-      res.status(500).json({ message: '레퍼런스 수정 오류', error });
-    }
-  });
+// 레퍼런스 수정
+router.patch("/:referenceId", authMiddleware, upload, updateReference);
 
-  export default router;
+// 레퍼런스 조회
+router.get("/", authMiddleware, getReference);
+
+// 레퍼런스 상세
+router.get("/:referenceId", authMiddleware, getReferenceDetail);
+
+// 레퍼런스 삭제
+router.delete("/:referenceId", authMiddleware, deleteReference);
+
+// 레퍼런스 삭제 (여러개)
+router.delete("/", authMiddleware, deleteReferences);
+
+// 레퍼런스 이동 
+router.patch("/", authMiddleware, moveReferences);
+
+export default router;

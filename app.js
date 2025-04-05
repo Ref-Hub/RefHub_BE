@@ -1,18 +1,48 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import * as dotenv from 'dotenv';
-import referenceRoutes from './routes/referenceRoutes.js';
+import express from "express";
+import cors from "cors";
+import connectDB from "./db.js";
 
-dotenv.config();
+import userRoutes from "./routes/userRoutes.js";
+import collectionRoutes from "./routes/collectionRoutes.js";
+import referenceRoutes from "./routes/referenceRoutes.js";
+
 const app = express();
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://refhub.site',
+    'https://api.refhub.site',
+    'https://www.refhub.my',
+    'https://refhub.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400
+}));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-app.use(cors());
-app.use(express.json());
+// DB 연결
+connectDB();
 
-mongoose.connect(process.env.DATABASE_URL).then(() => console.log('Connected to DB'));
+// 에러 처리 미들웨어
+const errorHandler = (err, req, res, next) => {
+  console.error("Error: ", err);
+  res
+    .status(500)
+    .json({ error: "서버 오류가 발생했습니다." });
+};
 
-//라우터 설정 (레퍼런스만 추가되어있음)
-app.use('/', referenceRoutes);
+// 라우트 설정
+app.use("/api/users", userRoutes);
+app.use("/api/collections", collectionRoutes);
+app.use("/api/references", referenceRoutes);
 
-app.listen(process.env.PORT || 3000, () => console.log('Server Started'));
+app.get('/aws', (req, res) => {
+  res.status(200).send('OK');
+});
+
+app.use(errorHandler);
+app.listen(process.env.PORT || 3000, () => console.log("Server Started"));
