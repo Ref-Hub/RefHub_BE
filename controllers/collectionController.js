@@ -14,7 +14,7 @@ import ogs from "open-graph-scraper";
 async function getOGImage(url) {
   try {
     const { result } = await ogs({ url });
-    return result.ogImage[0]?.url;
+    return result.ogImage[0]?.url || null;
   } catch (err) {
     console.log(`OG Image fetch error (${url}:)`, err.message);
     return null;
@@ -25,31 +25,22 @@ async function getOGImage(url) {
 const createCollection = async (req, res, next) => {
   try {
     const { title } = req.body;
-    const user = req.user.id;
+    const userId = req.user.id;
 
-    // 공유 받은 컬렉션 확인
-    const sharedCollectionIds = await CollectionShare.distinct("collectionId", {
-      userId: user,
-    }).lean();
+    const [sharedTitles, collectionExists] = await Promise.all([
+      Collection.find({
+        _id: {
+          $in: await CollectionShare.distinct("collectionId", {
+            userId: userId,
+          }),
+        },
+      })
+        .lean()
+        .distinct("title"),
+      Collection.exists({ title, createdBy: userId }),
+    ]);
 
-    const sharedTitles = await Collection.find({
-      _id: { $in: sharedCollectionIds },
-    })
-      .lean()
-      .distinct("title");
-
-    if (sharedTitles.includes(title)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "이미 동일한 이름의 컬렉션이 있습니다.",
-      });
-    }
-
-    // 생성했던 컬렉션 검사
-    const collectionExists = await Collection.exists({
-      title: title,
-      createdBy: user,
-    }).lean();
-    if (collectionExists) {
+    if (sharedTitles.includes(title) || collectionExists) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
@@ -58,7 +49,7 @@ const createCollection = async (req, res, next) => {
     // 컬렉션 생성
     const collection = await Collection.create({
       title: title,
-      createdBy: user,
+      createdBy: userId,
     });
     return res.status(StatusCodes.CREATED).json(collection);
   } catch (err) {
@@ -71,43 +62,12 @@ const getCollection = async (req, res, next) => {
   try {
     const { page = 1, sortBy = "latest", search = "" } = req.query;
     const pageSize = 15;
-    const user = req.user.id;
+    const userId = req.user.id;
 
     // 검색 조건 설정
     const searchCondition = search
       ? { title: { $regex: search, $options: "i" } }
       : {};
-
-    // 컬렉션 전체 개수 및 메시지 전달
-    const myCollections = await Collection.find({
-      ...searchCondition,
-      createdBy: user,
-    }).lean();
-
-    // 공유받은 컬렉션 조회
-    const sharedCollectionIds = await CollectionShare.find({
-      userId: user,
-    }).distinct("collectionId");
-    const sharedCollections = await Collection.find({
-      ...searchCondition,
-      _id: { $in: sharedCollectionIds },
-    }).lean();
-
-    // 생성 + 공유 컬렉션 합치기
-    const allCollections = [...myCollections, ...sharedCollections];
-    const totalItemCount = allCollections.length;
-
-    if (totalItemCount === 0) {
-      return res.status(StatusCodes.OK).json({
-        message: search
-          ? "검색 결과가 없어요. 다른 검색어로 시도해보세요!"
-          : "아직 생성된 컬렉션이 없어요. 새 컬렉션을 만들어 정리를 시작해보세요!",
-      });
-    }
-
-    // 페이지 유효성 검사
-    const parsedPage = parseInt(page, 10);
-    const validPage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
     // 정렬 조건
     const sortOptions = {
@@ -118,82 +78,118 @@ const getCollection = async (req, res, next) => {
     };
     const sort = sortOptions[sortBy] || sortOptions.latest;
 
-    // 컬렉션 페이지네이션
+    // 컬렉션 전체 개수 및 메시지 전달
+    const collections = await Collection.find({
+      ...searchCondition,
+      $or: [
+        { createdBy: userId }, // 사용자가 만든 컬렉션
+        {
+          _id: {
+            $in: await CollectionShare.find({ userId }).distinct(
+              "collectionId"
+            ),
+          },
+        }, // 사용자가 공유받은 컬렉션
+      ],
+    })
+      .sort(sort)
+      .lean();
+
+    if (collections.length === 0) {
+      return res.status(StatusCodes.OK).json({
+        message: search
+          ? "검색 결과가 없어요. 다른 검색어로 시도해보세요!"
+          : "아직 생성된 컬렉션이 없어요. 새 컬렉션을 만들어 정리를 시작해보세요!",
+      });
+    }
+
+    // 페이지 유효성 검사 && 페이지네이션
+    const totalItemCount = collections.length;
     const totalPages = Math.ceil(totalItemCount / pageSize);
-    const currentPage = Math.min(validPage, totalPages);
-    const skip = (currentPage - 1) * pageSize;
+    const currentPage = Math.min(Math.max(1, parseInt(page, 10)), totalPages);
+    const paginatedCollections = collections.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    );
 
-    // 정렬 후 페이지네이션 적용
-    const paginatedCollections = allCollections
-      .sort(
-        (a, b) =>
-          sort[Object.keys(sort)[0]] *
-          (a[Object.keys(sort)[0]] > b[Object.keys(sort)[0]] ? 1 : -1)
-      )
-      .slice(skip, skip + pageSize);
-
-    // 즐겨찾기 정보 조회
+    // 즐겨찾기, 레퍼런스, 공유 정보 조회
     const collectionIds = paginatedCollections.map((item) => item._id);
-    const [collectionFavorites, references] = await Promise.all([
-      CollectionFavorite.find({
-        userId: user,
-        collectionId: { $in: collectionIds },
-      }).lean(),
-      Reference.find({ collectionId: { $in: collectionIds } }).lean(),
-    ]);
-
-    // 공유 정보 조회
-    const checkIfShared = async (collectionId) => {
-      const sharedExists = await CollectionShare.exists({ collectionId });
-      return sharedExists ? true : false;
-    };
+    const [collectionFavorites, references, collectionShared] =
+      await Promise.all([
+        CollectionFavorite.find({
+          userId: userId,
+          collectionId: { $in: collectionIds },
+        }).lean(),
+        Reference.find({ collectionId: { $in: collectionIds } }).lean(),
+        CollectionShare.find({ collectionId: { $in: collectionIds } }).lean(),
+      ]);
 
     // 반환 데이터 재구성
     const modifiedData = await Promise.all(
       paginatedCollections.map(async (item) => {
         // 즐겨찾기 여부
         const isFavorite = collectionFavorites.some(
-          (fav) =>
-            fav.collectionId.toString() === item._id.toString() &&
-            fav.isFavorite
+          (fav) => fav.collectionId.equals(item._id) && fav.isFavorite
         );
-
-        const refList = references.filter(
-          (ref) => ref.collectionId.toString() === item._id.toString()
+        const refList = references.filter((ref) =>
+          ref.collectionId.equals(item._id)
         );
-        const refCount = refList.length;
-        const relevantReferences = refList
-          .slice(-Math.min(refCount, 4))
-          .reverse();
 
         // 프리뷰 이미지
-        const previewImages = await Promise.all(
-          relevantReferences.map(async (reference) => {
-            const file = reference.files[0];
-            if (!file) return null;
+        const relevantReferences = refList.slice(-4).reverse();
 
-            switch (file.type) {
-              case "link":
-                return await getOGImage(file.previewURL);
-              case "image":
-                return file.previewURLs?.[0] || null;
-              case "pdf":
-              case "otherfiles":
-              default:
-                return file.previewURL || null;
+        const URLs = [];
+        for (const ref of relevantReferences) {
+          if (Array.isArray(ref.files)) {
+            for (const file of ref.files) {
+              switch (file.type) {
+                case "image":
+                  URLs.push(
+                    ...file.previewURLs.map((url) => ({ type: file.type, url }))
+                  );
+                  break;
+                case "link":
+                case "pdf":
+                default:
+                  URLs.push({ type: file.type, url: file.previewURL });
+                  break;
+              }
+              if (URLs.length >= 4) break;
+            }
+          }
+          if (URLs.length >= 4) break;
+        }
+
+        let previewImages = await Promise.all(
+          URLs.map(async (file) => {
+            try {
+              switch (file.type) {
+                case "link":
+                  return getOGImage(file.url);
+                case "image":
+                case "pdf":
+                  return file.url;
+                default:
+                  return null;
+              }
+            } catch (err) {
+              console.error(`OGS error for ${file.url}`, err);
+              return null;
             }
           })
         );
 
-        const role = await CollectionShare.findOne({
-          collectionId: item._id,
-          userId: user,
-        }).distinct("role");
-
-        const isShared = await checkIfShared(item._id);
-        const isCreator = item.createdBy.toString() === user;
-        const isViewer = !isCreator && role[0] === "viewer"; // 이거 !isCreator 안 해도 되지 않나?
-        const isEditor = !isCreator && role[0] === "editor";
+        const sharedEntry = collectionShared.find(
+          (share) =>
+            share.collectionId.equals(item._id) && share.userId.equals(userId)
+        );
+        const role = sharedEntry ? sharedEntry.role : null;
+        const isShared = collectionShared.some((share) =>
+          share.collectionId.equals(item._id)
+        );
+        const isCreator = item.createdBy.equals(userId);
+        const isViewer = role === "viewer";
+        const isEditor = role === "editor";
 
         return {
           _id: item._id,
@@ -205,7 +201,7 @@ const getCollection = async (req, res, next) => {
           editor: isEditor,
           createdBy: item.createdBy,
           createdAt: item.createdAt,
-          refCount: refCount,
+          refCount: refList.length,
           previewImages: previewImages,
         };
       })
@@ -214,7 +210,7 @@ const getCollection = async (req, res, next) => {
     modifiedData.sort((a, b) => b.isFavorite - a.isFavorite);
 
     return res.status(StatusCodes.OK).json({
-      currentPage: validPage,
+      currentPage,
       totalPages,
       totalItemCount,
       data: modifiedData,
@@ -228,64 +224,55 @@ const getCollection = async (req, res, next) => {
 const updateCollection = async (req, res, next) => {
   const { collectionId } = req.params;
   const { title } = req.body;
-  const user = req.user.id;
+  const userId = req.user.id;
 
   try {
     // 컬렉션 존재 확인
-    const collection = await Collection.findById(collectionId);
+
+    const [collection, role] = await Promise.all([
+      Collection.findById(collectionId).lean(),
+      CollectionShare.distinct("role", {
+        collectionId: collectionId,
+        userId: userId,
+      }).lean(),
+    ]);
+
     if (!collection) {
       return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
     }
 
-    // 권한 확인. 생성자 또는 에디터면 OK
-    const role = await CollectionShare.findOne({
-      collectionId: collectionId,
-      userId: user,
-    }).distinct("role");
-
     const owner = collection.createdBy;
-    const isOwner = owner.toString() === user;
+    const isOwner = owner.equals(userId);
     const isEditor = role[0] === "editor";
 
-    if (isOwner && isEditor) {
+    if (!isOwner && !isEditor) {
       return res.status(StatusCodes.NOT_FOUND).json({
         error: "존재하지 않습니다.",
       });
     }
 
-    // 공유 받은 컬렉션 확인
-    const sharedCollectionIds = await CollectionShare.find({
-      userId: user,
-    })
-      .lean()
-      .distinct("collectionId");
+    const [sharedTitles, collectionExists] = await Promise.all([
+      Collection.find({
+        _id: {
+          $in: await CollectionShare.distinct("collectionId", {
+            userId: userId,
+          }),
+        },
+      })
+        .lean()
+        .distinct("title"),
+      Collection.exists({ title, createdBy: userId }),
+    ]);
 
-    const sharedTitles = await Collection.find({
-      _id: { $in: sharedCollectionIds },
-    })
-      .lean()
-      .distinct("title");
-
-    if (sharedTitles.includes(title)) {
+    if (sharedTitles.includes(title) || collectionExists) {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "이미 동일한 이름의 컬렉션이 있습니다.",
       });
     }
 
-    // 생성했던 컬렉션 검사
-    const collectionExists = await Collection.exists({
-      title: title,
-      createdBy: user,
-    }).lean();
-    if (collectionExists) {
-      return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "이미 동일한 이름의 컬렉션이 있습니다.",
-      });
-    }
-
-    // 컬렉션 수정
+    // 컬렉션 찾고 업데이트
     const collectionUpdate = await Collection.findOneAndUpdate(
       { _id: collectionId, createdBy: owner },
       { $set: { title: title } },
@@ -294,7 +281,7 @@ const updateCollection = async (req, res, next) => {
 
     if (!collectionUpdate) {
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-        error: "해당 컬렉션을 찾을 수 없거나, 수정할 내용이 없습니다.",
+        error: "컬렉션 수정 중 오류가 발생했습니다.",
       });
     }
 
