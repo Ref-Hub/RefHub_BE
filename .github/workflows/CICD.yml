@@ -34,7 +34,7 @@ jobs:
       - name: 🚀 EC2에 배포
         run: |
           cd ~/RefHub_BE
-          git pull origin ${{ github.ref_name }}
+          git pull --no-rebase origin ${{ github.ref_name }}
           npm install
       
           if [[ "${{ github.ref_name }}" == "main" ]]; then
