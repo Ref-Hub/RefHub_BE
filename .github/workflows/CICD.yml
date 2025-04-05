@@ -40,9 +40,9 @@ jobs:
 
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "✅ 운영 환경 실행"
-            pm2 restart app-prod || pm2 start ecosystem.config.js --only app-prod --env production
+            pm2 restart app-prod || pm2 start ecosystem.config.cjs --only app-prod --env production
           else
             echo "✅ 개발 환경 실행"
-            pm2 restart app-dev || pm2 start ecosystem.config.js --only app-dev --env development
+            pm2 restart app-dev || pm2 start ecosystem.config.cjs --only app-dev --env development
           fi
         shell: bash
