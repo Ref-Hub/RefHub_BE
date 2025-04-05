@@ -1,3 +1,6 @@
+import dotenvFlow from "dotenv-flow";
+dotenvFlow.config();
+
 import express from "express";
 import cors from "cors";
 import connectDB from "./db.js";
@@ -45,4 +48,6 @@ app.get('/aws', (req, res) => {
 });
 
 app.use(errorHandler);
-app.listen(process.env.PORT || 3000, () => console.log("Server Started"));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server started on port ${PORT} (env: ${process.env.NODE_ENV})`));
