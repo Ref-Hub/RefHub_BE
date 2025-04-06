@@ -75,7 +75,6 @@ export const addReference = async (req, res) => {
     // Collection 확인
     const collection = await Collection.findOne({
       _id: collectionId, // title에서 id로 컬렉션 찾기 변경
-      createdBy: userId,
     });
 
     if (!collection) {
