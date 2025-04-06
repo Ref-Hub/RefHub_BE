@@ -46,7 +46,7 @@ jobs:
                 env: {
                   NODE_ENV: 'production',
                   PORT: 3000,
-                  MONGO_URI: '${{ secrets.MONGO_URI_PROD }}',
+                  MONGO_URI_PROD: '${{ secrets.MONGO_URI_PROD }}',
                   EMAIL_PASS: '${{ secrets.EMAIL_PASS }}',
                   EMAIL_USER: '${{ secrets.EMAIL_USER }}',
                   JWT_SECRET: '${{ secrets.JWT_SECRET }}',
@@ -72,7 +72,7 @@ jobs:
                 env: {
                   NODE_ENV: 'development',
                   PORT: 4000,
-                  MONGO_URI: '${{ secrets.MONGO_URI_DEV }}',
+                  MONGO_URI_DEV: '${{ secrets.MONGO_URI_DEV }}',
                   EMAIL_PASS: '${{ secrets.EMAIL_PASS }}',
                   EMAIL_USER: '${{ secrets.EMAIL_USER }}',
                   JWT_SECRET: '${{ secrets.JWT_SECRET }}',
