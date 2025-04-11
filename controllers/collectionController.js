@@ -3,6 +3,7 @@ import CollectionFavorite from "../models/CollectionFavorite.js";
 import CollectionShare from "../models/CollectionShare.js";
 import Reference from "../models/Reference.js";
 import Keyword from "../models/Keyword.js";
+import Extension from "../models/Extension.js";
 
 import { StatusCodes } from "http-status-codes";
 import { deleteFileByUrl } from "../middlewares/fileDelete.js";
@@ -273,17 +274,23 @@ const updateCollection = async (req, res, next) => {
     }
 
     // 컬렉션 찾고 업데이트
-    const collectionUpdate = await Collection.findOneAndUpdate(
-      { _id: collectionId, createdBy: owner },
-      { $set: { title: title } },
-      { new: true, runValidators: true }
-    );
+    const [collectionUpdate] = await Promise.all([
+      Collection.findOneAndUpdate(
+        { _id: collectionId, createdBy: owner },
+        { $set: { title: title } },
+        { new: true, runValidators: true }
+      ),
+      Extension.findOneAndDelete({
+        userId: userId,
+        collectionId: collectionId,
+      }),
+    ]);
 
-    if (!collectionUpdate) {
-      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-        error: "컬렉션 수정 중 오류가 발생했습니다.",
-      });
-    }
+      if (!collectionUpdate) {
+        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+          error: "컬렉션 수정 중 오류가 발생했습니다.",
+        });
+      }
 
     return res.status(StatusCodes.OK).json(collectionUpdate);
   } catch (err) {
@@ -414,6 +421,9 @@ const deleteCollection = async (req, res, next) => {
         collectionId: { $in: collectionIdsToDelete },
       }),
       CollectionFavorite.deleteMany({
+        collectionId: { $in: collectionIdsToDelete },
+      }),
+      Extension.deleteMany({
         collectionId: { $in: collectionIdsToDelete },
       }),
       Collection.deleteMany({

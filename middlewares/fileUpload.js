@@ -29,6 +29,12 @@ const upload = multer({
   { name: "otherFiles", maxCount: 5 },
 ]);
 
+// 익스텐션용 파일 업로드
+const uploadEx = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+}).single("file");
+
 // S3에 파일 업로드 함수
 export const uploadFileToS3 = async (file, fileType) => {
   try {
@@ -58,4 +64,4 @@ export const uploadFileToS3 = async (file, fileType) => {
   }
 };
 
-export { upload };
+export { upload, uploadEx };
