@@ -21,7 +21,7 @@ export const downloadFileFromS3 = async (req, res) => {
       return res.status(400).json({ error: "파일 URL이 필요합니다." });
     }
 
-    // S3 키 추출 (URL에서 파일 이름 부분만 가져오기)
+    // URL에서 S3 키 추출 - 이미 인코딩된 URL 디코딩
     const fileKey = decodeURIComponent(new URL(fileUrl).pathname.substring(1));
     console.log("S3에서 검색할 파일 키:", fileKey);
 
@@ -33,8 +33,12 @@ export const downloadFileFromS3 = async (req, res) => {
     const command = new GetObjectCommand(params);
     const file = await s3.send(command);
 
-    // 파일명 인코딩 (RFC 5987 표준에 맞게 URL-safe 방식 적용)
-    const encodedFileName = encodeURIComponent(fileKey).replace(/'/g, "%27");
+    // 파일명 추출 - 메타데이터에서 찾거나 키에서 파싱
+    let originalFilename = file.Metadata?.["original-filename"] ||
+      fileKey.split('-').slice(1).join('-');
+
+    // Content-Disposition 헤더에 적절한 인코딩 적용
+    const encodedFileName = encodeURIComponent(originalFilename).replace(/'/g, "%27");
 
     // 응답 헤더 설정
     res.setHeader("Content-Type", file.ContentType);
