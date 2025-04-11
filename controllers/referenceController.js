@@ -148,9 +148,7 @@ export const addReference = async (req, res) => {
       const key = `images${i}`;
       if (req.files[key]) {
         if (totalAttachments >= 5) {
-          return res
-            .status(400)
-            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const imagePaths = [];
@@ -163,25 +161,34 @@ export const addReference = async (req, res) => {
           : [req.files[key]];
 
         for (const image of images) {
-          const uploadedImage = await uploadFileToS3(image); // 원본 사진 업로드
-          const uploadedImagePreview = await savePreviewImage(image); // 프리뷰 업로드
-          imagePaths.push(uploadedImage.url); // 원본 사진 저장 경로
-          previewURLs.push(uploadedImagePreview.url); // 프리뷰 저장 경로
-          filenames.push(image.originalname);
+          // 파일명 정규화 및 인코딩
+          const encodedName = normalizeAndEncodeFileName(image.originalname);
+
+          // 정규화된 파일명으로 업로드
+          const uploadedImage = await uploadFileToS3({
+            ...image,
+            originalname: encodedName
+          });
+          const uploadedImagePreview = await savePreviewImage({
+            ...image,
+            originalname: encodedName
+          });
+
+          imagePaths.push(uploadedImage.url);
+          previewURLs.push(uploadedImagePreview.url);
+          filenames.push(encodedName); // 인코딩된 파일명 저장
         }
 
         files.push({
           type: "image",
           path: imagePaths.join(", "),
-          size: formatFileSize(
-            images.reduce((total, img) => total + img.size, 0)
-          ),
+          size: formatFileSize(images.reduce((total, img) => total + img.size, 0)),
           images: imagePaths,
           previewURLs: previewURLs,
           filenames: filenames,
         });
 
-        totalAttachments++; // 이미지 리스트 하나가 첨부 자료 1개로 취급됨
+        totalAttachments++;
       }
     }
 
@@ -189,25 +196,32 @@ export const addReference = async (req, res) => {
     if (req.files.files) {
       for (const file of req.files.files) {
         if (totalAttachments >= 5) {
-          return res
-            .status(400)
-            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         if (file.originalname.split(".").pop().toLowerCase() !== "pdf") {
-          return res
-            .status(400)
-            .json({ error: "PDF 파일만 업로드 가능합니다." });
+          return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다." });
         }
 
-        const uploadedFile = await uploadFileToS3(file);
-        const uploadedFilePreview = await convertPdfToImage(file);
+        // 파일명 정규화 및 인코딩
+        const encodedName = normalizeAndEncodeFileName(file.originalname);
+
+        // 정규화된 파일명으로 업로드
+        const uploadedFile = await uploadFileToS3({
+          ...file,
+          originalname: encodedName
+        });
+        const uploadedFilePreview = await convertPdfToImage({
+          ...file,
+          originalname: encodedName
+        });
+
         files.push({
           type: "pdf",
           path: uploadedFile.url,
           size: formatFileSize(file.size),
           previewURL: uploadedFilePreview.url,
-          filename: file.originalname,
+          filename: encodedName, // 인코딩된 파일명 저장
         });
 
         totalAttachments++;
@@ -218,18 +232,24 @@ export const addReference = async (req, res) => {
     if (req.files.otherFiles) {
       for (const file of req.files.otherFiles) {
         if (totalAttachments >= 5) {
-          return res
-            .status(400)
-            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
-        const uploadedFile = await uploadFileToS3(file);
+        // 파일명 정규화 및 인코딩
+        const encodedName = normalizeAndEncodeFileName(file.originalname);
+
+        // 정규화된 파일명으로 업로드
+        const uploadedFile = await uploadFileToS3({
+          ...file,
+          originalname: encodedName
+        });
+
         files.push({
           type: "file",
           path: uploadedFile.url,
           size: formatFileSize(file.size),
           previewURL: uploadedFile.url,
-          filename: file.originalname,
+          filename: encodedName, // 인코딩된 파일명 저장
         });
 
         totalAttachments++;
@@ -449,23 +469,30 @@ export const updateReference = async (req, res) => {
           const previewURLs = [];
           const filenames = [];
 
-          const images = Array.isArray(req.files[key])
-            ? req.files[key].slice(0, 5)
-            : [req.files[key]];
+          const images = Array.isArray(req.files[key]) ? req.files[key].slice(0, 5) : [req.files[key]];
           for (const image of images) {
-            const uploadedImage = await uploadFileToS3(image); // 원본 사진 업로드
-            const uploadedImagePreview = await savePreviewImage(image); // 프리뷰 업로드
-            imagePaths.push(uploadedImage.url); // 원본 사진 저장 경로
-            previewURLs.push(uploadedImagePreview.url); // 프리뷰 저장 경로
-            filenames.push(image.originalname);
+            // 파일명 정규화 및 인코딩
+            const encodedName = normalizeAndEncodeFileName(image.originalname);
+
+            // 정규화된 파일명으로 업로드
+            const uploadedImage = await uploadFileToS3({
+              ...image,
+              originalname: encodedName
+            });
+            const uploadedImagePreview = await savePreviewImage({
+              ...image,
+              originalname: encodedName
+            });
+
+            imagePaths.push(uploadedImage.url);
+            previewURLs.push(uploadedImagePreview.url);
+            filenames.push(encodedName); // 인코딩된 파일명 저장
           }
 
           newFiles.push({
             type: "image",
             path: imagePaths.join(", "),
-            size: formatFileSize(
-              images.reduce((total, img) => total + img.size, 0)
-            ),
+            size: formatFileSize(images.reduce((total, img) => total + img.size, 0)),
             images: imagePaths,
             previewURLs: previewURLs,
             filenames: filenames,
@@ -479,15 +506,28 @@ export const updateReference = async (req, res) => {
       if (req.files.files) {
         for (const file of req.files.files) {
           if (totalAttachments >= 5) break;
-          const uploadedFile = await uploadFileToS3(file);
-          const uploadedFilePreview = await convertPdfToImage(file);
+
+          // 파일명 정규화 및 인코딩
+          const encodedName = normalizeAndEncodeFileName(file.originalname);
+
+          // 정규화된 파일명으로 업로드
+          const uploadedFile = await uploadFileToS3({
+            ...file,
+            originalname: encodedName
+          });
+          const uploadedFilePreview = await convertPdfToImage({
+            ...file,
+            originalname: encodedName
+          });
+
           newFiles.push({
             type: "pdf",
             path: uploadedFile.url,
             size: formatFileSize(file.size),
             previewURL: uploadedFilePreview.url,
-            filename: file.originalname,
+            filename: encodedName,
           });
+
           totalAttachments++;
         }
       }
@@ -496,14 +536,24 @@ export const updateReference = async (req, res) => {
       if (req.files.otherFiles) {
         for (const file of req.files.otherFiles) {
           if (totalAttachments >= 5) break;
-          const uploadedFile = await uploadFileToS3(file);
+
+          // 파일명 정규화 및 인코딩
+          const encodedName = normalizeAndEncodeFileName(file.originalname);
+
+          // 정규화된 파일명으로 업로드
+          const uploadedFile = await uploadFileToS3({
+            ...file,
+            originalname: encodedName
+          });
+
           newFiles.push({
             type: "file",
             path: uploadedFile.url,
             size: formatFileSize(file.size),
             previewURL: uploadedFile.url,
-            filename: file.originalname,
+            filename: encodedName,
           });
+
           totalAttachments++;
         }
       }
@@ -1052,5 +1102,24 @@ export const deleteReferences = async (req, res) => {
     res
       .status(500)
       .json({ message: "레퍼런스 삭제 모드에서 오류가 발생하였습니다." });
+  }
+};
+
+/**
+ * 파일 이름을 일관되게 정규화하고 인코딩하는 함수
+ * @param {string} fileName - 원본 파일명
+ * @returns {string} - 정규화 및 인코딩된 파일명
+ */
+const normalizeAndEncodeFileName = (fileName) => {
+  try {
+    // 한글 정규화 처리 (NFC 방식으로 통일)
+    const normalized = fileName.normalize("NFC");
+
+    // URL 인코딩 처리
+    return encodeURIComponent(normalized);
+  } catch (error) {
+    console.error("파일명 인코딩 오류:", error.message);
+    // 오류 발생 시 원본 반환
+    return fileName;
   }
 };
