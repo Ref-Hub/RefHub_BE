@@ -1,6 +1,6 @@
 import Collection from "../models/Collection.js";
 import Reference from "../models/Reference.js";
-import CollectionExtension from "../models/CollectionExtension.js";
+import Extension from "../models/Extension.js";
 
 import { formatFileSize } from "../middlewares/fileUtil.js";
 import { convertPdfToImage, savePreviewImage } from "../middlewares/convert.js";
@@ -37,9 +37,9 @@ export const addReferenceEx = async (req, res, next) => {
 
   try {
     // 익스텐션 컬렉션 있는지 찾기
-    let exCollection = await CollectionExtension.findOne({
+    let exCollection = await Extension.findOne({
       userId: userId,
-    });
+    }).lean();
 
     // 컬렉션 있는지 찾기
     const collectionExists = await Collection.exists({
@@ -48,7 +48,7 @@ export const addReferenceEx = async (req, res, next) => {
 
     // 익스텐션에는 남아있는데 실제로는 없으면 익스텐션 삭제
     if (!collectionExists) {
-      await CollectionExtension.deleteOne({ userId: userId });
+      await Extension.deleteOne({ userId: userId });
       exCollection = null;
     }
 
@@ -58,7 +58,7 @@ export const addReferenceEx = async (req, res, next) => {
         title: "구글 확장 프로그램",
         createdBy: userId,
       });
-      exCollection = await CollectionExtension.create({
+      exCollection = await Extension.create({
         userId: userId,
         collectionId: collection._id,
       });

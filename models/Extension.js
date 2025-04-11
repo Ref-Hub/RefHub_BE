@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const collectionExtensionSchema = new mongoose.Schema(
+const extensionSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -17,14 +17,14 @@ const collectionExtensionSchema = new mongoose.Schema(
 );
 
 // Index 설정
-collectionExtensionSchema.index({ userId: 1 }, { unique: true });
+extensionSchema.index({ userId: 1 }, { unique: true });
 
-const CollectionExtension =
-  mongoose.models.CollectionExtension ||
+const Extension =
+  mongoose.models.Extension ||
   mongoose.model(
-    "CollectionExtension",
-    collectionExtensionSchema,
-    "collectionExtensions"
+    "Extension",
+    extensionSchema,
+    "extensions"
   );
 
-export default CollectionExtension;
+export default Extension;
