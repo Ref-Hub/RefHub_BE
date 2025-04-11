@@ -5,6 +5,7 @@ import connectDB from "./db.js";
 import userRoutes from "./routes/userRoutes.js";
 import collectionRoutes from "./routes/collectionRoutes.js";
 import referenceRoutes from "./routes/referenceRoutes.js";
+import extensionRoutes from "./routes/extensionRoutes.js"
 
 const app = express();
 app.use(
@@ -40,6 +41,7 @@ const errorHandler = (err, req, res, next) => {
 app.use("/api/users", userRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/references", referenceRoutes);
+app.use("/api/extensions", extensionRoutes);
 
 app.get("/aws", (req, res) => {
   res.status(200).send("OK");
