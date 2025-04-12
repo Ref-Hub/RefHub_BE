@@ -290,310 +290,325 @@ export const addReference = async (req, res) => {
 
 // 레퍼런스 수정
 export const updateReference = async (req, res) => {
-  try {
-    const { referenceId } = req.params;
-    const {
-      collectionId,
-      title,
-      keywords,
-      memo,
-      links,
-      existingFiles,
-      existingKeywords,
-    } = req.body;
-    const userId = req.user.id;
-
-    // 디버깅 로그 추가
-    console.log("Update Reference Request Body:", {
-      collectionId,
-      title,
-      keywords: keywords
-        ? Array.isArray(keywords)
-          ? keywords
-          : keywords.split(" ")
-        : [],
-      existingFiles: existingFiles ? JSON.parse(existingFiles) : [],
-    });
-    console.log("Files in request:", req.files);
-
-    // 기존 Reference 가져오기
-    const reference = await Reference.findById(referenceId);
-    if (!reference) {
-      return res
-        .status(404)
-        .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
-    }
-
-    // 권한 확인 (생성자 또는 editor)
-    const hasAccess = await hasEditorAccess(userId, reference.collectionId);
-    if (!hasAccess) {
-      return res
-        .status(403)
-        .json({ error: "레퍼런스를 수정할 권한이 없습니다." });
-    }
-
     try {
-      // 클라이언트에서 유지할 기존 파일 정보 파싱
-      let keepFiles = [];
-
-      if (existingFiles) {
-        try {
-          keepFiles = JSON.parse(existingFiles);
-          console.log("Files to keep from existingFiles:", keepFiles);
-        } catch (parseError) {
-          console.error("Error parsing existingFiles:", parseError);
-          return res
-            .status(400)
-            .json({ error: "잘못된 existingFiles 형식입니다." });
-        }
-      } else {
-        console.warn(
-          "No existingFiles field provided - keeping all files by default"
-        );
-        // existingFiles가 없으면 원래 있던 파일 모두 유지 (중요한 변경!)
-        keepFiles = reference.files.map((file) => file.path);
-      }
-
-      // 유지할 기존 파일 필터링 (path 기반)
-      const filesToKeep = reference.files.filter((file) => {
-        // keepFiles 배열에 file.path가 포함되어 있는지 확인
-        const shouldKeep = keepFiles.includes(file.path);
-        console.log(`File ${file.path} keep status:`, shouldKeep);
-        return shouldKeep;
+      const { referenceId } = req.params;
+      const {
+        collectionId,
+        title,
+        keywords,
+        memo,
+        links,
+        existingFiles,
+        existingKeywords,
+      } = req.body;
+      const userId = req.user.id;
+  
+      // Debugging logs
+      console.log("Update Reference Request Body:", {
+        collectionId,
+        title,
+        keywords: keywords
+          ? Array.isArray(keywords)
+            ? keywords
+            : keywords.split(" ")
+          : [],
+        existingFiles: existingFiles ? JSON.parse(existingFiles) : [],
       });
-
-      console.log(
-        "Files decided to keep:",
-        filesToKeep.map((f) => f.path)
-      );
-
-      // 삭제할 파일 목록 추출 (유지되지 않는 기존 파일)
-      const filesToDelete = reference.files.filter(
-        (file) => !keepFiles.includes(file.path)
-      );
-      console.log(
-        "Files to delete:",
-        filesToDelete.map((f) => f.path)
-      );
-
-      // 기존 파일 삭제 처리
-      for (const file of filesToDelete) {
-        if (file.type === "pdf") {
-          // file이 pdf인 경우 pdf preview image 삭제
-          deletePreviewByUrl(file.previewURL);
-        } else if (file.type === "image") {
-          for (const previewURL of file.previewURLs) {
-            await deletePreviewByUrl(previewURL);
-          }
-        }
-        if (file.type !== "link" && file.path) {
-          if (typeof file.path === "string") {
-            // 이미지 리스트 처리: 쉼표(,)가 포함된 경우 개별 URL로 분리하여 삭제
-            const filePaths = file.path.includes(",")
-              ? file.path.split(",").map((path) => path.trim())
-              : [file.path];
-
-            for (const filePath of filePaths) {
-              await deleteFileByUrl(filePath);
-            }
-          } else {
-            await deleteFileByUrl(file.path);
-          }
-        }
+      console.log("Files in request:", req.files);
+  
+      // 기존 Reference 가져오기
+      const reference = await Reference.findById(referenceId);
+      if (!reference) {
+        return res
+          .status(404)
+          .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
       }
-
-      // 기존 키워드 유지 & 삭제할 키워드 식별
-      let updatedKeywordIds = [];
-      if (existingKeywords) {
-        try {
-          const keepKeywordIds = JSON.parse(existingKeywords);
-          updatedKeywordIds = reference.keywords.filter((k) =>
-            keepKeywordIds.includes(k.toString())
+  
+      // 권한 확인 (생성자 또는 editor)
+      const hasAccess = await hasEditorAccess(userId, reference.collectionId);
+      if (!hasAccess) {
+        return res
+          .status(403)
+          .json({ error: "레퍼런스를 수정할 권한이 없습니다." });
+      }
+  
+      try {
+        // 클라이언트에서 유지할 기존 파일 정보 파싱
+        let keepFilePaths = [];
+  
+        if (existingFiles) {
+          try {
+            keepFilePaths = JSON.parse(existingFiles);
+            console.log("Paths to keep from existingFiles:", keepFilePaths);
+          } catch (parseError) {
+            console.error("Error parsing existingFiles:", parseError);
+            return res
+              .status(400)
+              .json({ error: "잘못된 existingFiles 형식입니다." });
+          }
+        } else {
+          console.warn(
+            "No existingFiles field provided - keeping all files by default"
           );
-        } catch (parseError) {
-          console.error("Error parsing existingKeywords:", parseError);
-          // 에러가 발생해도 진행, 기존 키워드 모두 유지
+          // existingFiles가 없으면 원래 있던 파일 모두 유지 (중요한 변경!)
+          keepFilePaths = reference.files.map((file) => file.path);
+        }
+  
+        // 유지할 기존 파일 필터링 (path 기반)
+        // 수정: 경로 비교 로직 개선 - 각 파일 타입별로 다르게 처리
+        const filesToKeep = reference.files.filter((file) => {
+          // path가 문자열인지 확인
+          if (typeof file.path !== 'string') {
+            return false;
+          }
+          
+          // 파일 경로가 keepFilePaths 배열에 정확히 포함되어 있는지 확인
+          const shouldKeep = keepFilePaths.some(path => 
+            // 이미지인 경우 쉼표로 구분된 여러 경로 중 하나라도 일치하면 유지
+            (file.type === 'image' && file.path.includes(',')) 
+              ? file.path.split(',').some(p => path.includes(p.trim()))
+              : path === file.path
+          );
+          
+          console.log(`File ${file.path} keep status:`, shouldKeep, `(type: ${file.type})`);
+          return shouldKeep;
+        });
+  
+        console.log(
+          "Files decided to keep:",
+          filesToKeep.map((f) => ({path: f.path, type: f.type}))
+        );
+  
+        // 삭제할 파일 목록 추출 (유지되지 않는 기존 파일)
+        const filesToDelete = reference.files.filter(
+          (file) => !filesToKeep.some(keptFile => keptFile._id.toString() === file._id.toString())
+        );
+        
+        console.log(
+          "Files to delete:",
+          filesToDelete.map((f) => ({path: f.path, type: f.type}))
+        );
+  
+        // 기존 파일 삭제 처리
+        for (const file of filesToDelete) {
+          if (file.type === "pdf") {
+            // file이 pdf인 경우 pdf preview image 삭제
+            deletePreviewByUrl(file.previewURL);
+          } else if (file.type === "image") {
+            for (const previewURL of file.previewURLs || []) {
+              await deletePreviewByUrl(previewURL);
+            }
+          }
+          if (file.type !== "link" && file.path) {
+            if (typeof file.path === "string") {
+              // 이미지 리스트 처리: 쉼표(,)가 포함된 경우 개별 URL로 분리하여 삭제
+              const filePaths = file.path.includes(",")
+                ? file.path.split(",").map((path) => path.trim())
+                : [file.path];
+  
+              for (const filePath of filePaths) {
+                await deleteFileByUrl(filePath);
+              }
+            } else {
+              await deleteFileByUrl(file.path);
+            }
+          }
+        }
+  
+        // 기존 키워드 유지 & 삭제할 키워드 식별
+        let updatedKeywordIds = [];
+        if (existingKeywords) {
+          try {
+            const keepKeywordIds = JSON.parse(existingKeywords);
+            updatedKeywordIds = reference.keywords.filter((k) =>
+              keepKeywordIds.includes(k.toString())
+            );
+          } catch (parseError) {
+            console.error("Error parsing existingKeywords:", parseError);
+            // 에러가 발생해도 진행, 기존 키워드 모두 유지
+            updatedKeywordIds = [...reference.keywords];
+          }
+        } else {
+          // existingKeywords가 없으면 기존 키워드 모두 유지
           updatedKeywordIds = [...reference.keywords];
         }
-      } else {
-        // existingKeywords가 없으면 기존 키워드 모두 유지
-        updatedKeywordIds = [...reference.keywords];
-      }
-
-      // 새로운 키워드 추가 (ObjectId 변환)
-      if (keywords) {
-        const keywordArray = Array.isArray(keywords)
-          ? keywords
-          : keywords.split(" ");
-        for (const keyword of keywordArray) {
-          if (keyword.length > 15) continue;
-
-          let existingKeyword = await Keyword.findOne({ keywordName: keyword });
-          if (!existingKeyword) {
-            existingKeyword = await Keyword.create({ keywordName: keyword });
-          }
-
-          const keywordId = existingKeyword._id.toString();
-          if (!updatedKeywordIds.some((id) => id.toString() === keywordId)) {
-            updatedKeywordIds.push(new mongoose.Types.ObjectId(keywordId));
+  
+        // 새로운 키워드 추가 (ObjectId 변환)
+        if (keywords) {
+          const keywordArray = Array.isArray(keywords)
+            ? keywords
+            : keywords.split(" ");
+          for (const keyword of keywordArray) {
+            if (keyword.length > 15) continue;
+  
+            let existingKeyword = await Keyword.findOne({ keywordName: keyword });
+            if (!existingKeyword) {
+              existingKeyword = await Keyword.create({ keywordName: keyword });
+            }
+  
+            const keywordId = existingKeyword._id.toString();
+            if (!updatedKeywordIds.some((id) => id.toString() === keywordId)) {
+              updatedKeywordIds.push(new mongoose.Types.ObjectId(keywordId));
+            }
           }
         }
-      }
-
-      // 새로운 파일 저장할 배열
-      const newFiles = [];
-      let totalAttachments = filesToKeep.length; // 기존 유지 파일 개수 포함
-
-      // 링크 처리
-      if (links) {
-        const linkArray = Array.isArray(links) ? links : [links];
-        for (const link of linkArray) {
-          if (totalAttachments >= 5) break;
-          newFiles.push({
-            type: "link",
-            path: link,
-            size: 0,
-            previewURL: link,
-          });
-          totalAttachments++;
+  
+        // 새로운 파일 저장할 배열
+        const newFiles = [];
+        let totalAttachments = filesToKeep.length; // 기존 유지 파일 개수 포함
+  
+        // 링크 처리
+        if (links) {
+          const linkArray = Array.isArray(links) ? links : [links];
+          for (const link of linkArray) {
+            if (totalAttachments >= 5) break;
+            newFiles.push({
+              type: "link",
+              path: link,
+              size: 0,
+              previewURL: link,
+            });
+            totalAttachments++;
+          }
         }
-      }
-
-      // 이미지 리스트 처리
-      for (let i = 1; i <= 5; i++) {
-        const key = `images${i}`;
-        if (req.files[key]) {
-          if (totalAttachments >= 5) break;
-
-          const imagePaths = [];
-          const previewURLs = [];
-          const filenames = [];
-
-          const images = Array.isArray(req.files[key]) ? req.files[key].slice(0, 5) : [req.files[key]];
-          for (const image of images) {
+  
+        // 이미지 리스트 처리
+        for (let i = 1; i <= 5; i++) {
+          const key = `images${i}`;
+          if (req.files[key]) {
+            if (totalAttachments >= 5) break;
+  
+            const imagePaths = [];
+            const previewURLs = [];
+            const filenames = [];
+  
+            const images = Array.isArray(req.files[key]) ? req.files[key].slice(0, 5) : [req.files[key]];
+            for (const image of images) {
+              // 파일명 정규화 및 인코딩
+              const encodedName = normalizeAndEncodeFileName(image.originalname);
+  
+              // 정규화된 파일명으로 업로드
+              const uploadedImage = await uploadFileToS3({
+                ...image,
+                originalname: encodedName
+              });
+              const uploadedImagePreview = await savePreviewImage({
+                ...image,
+                originalname: encodedName
+              });
+  
+              imagePaths.push(uploadedImage.url);
+              previewURLs.push(uploadedImagePreview.url);
+              filenames.push(encodedName); // 인코딩된 파일명 저장
+            }
+  
+            newFiles.push({
+              type: "image",
+              path: imagePaths.join(", "),
+              size: formatFileSize(images.reduce((total, img) => total + img.size, 0)),
+              images: imagePaths,
+              previewURLs: previewURLs,
+              filenames: filenames,
+            });
+  
+            totalAttachments++;
+          }
+        }
+  
+        // PDF 처리
+        if (req.files.files) {
+          const pdfFiles = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+          for (const file of pdfFiles) {
+            if (totalAttachments >= 5) break;
+  
             // 파일명 정규화 및 인코딩
-            const encodedName = normalizeAndEncodeFileName(image.originalname);
-
+            const encodedName = normalizeAndEncodeFileName(file.originalname);
+  
             // 정규화된 파일명으로 업로드
-            const uploadedImage = await uploadFileToS3({
-              ...image,
+            const uploadedFile = await uploadFileToS3({
+              ...file,
               originalname: encodedName
             });
-            const uploadedImagePreview = await savePreviewImage({
-              ...image,
+            const uploadedFilePreview = await convertPdfToImage({
+              ...file,
               originalname: encodedName
             });
-
-            imagePaths.push(uploadedImage.url);
-            previewURLs.push(uploadedImagePreview.url);
-            filenames.push(encodedName); // 인코딩된 파일명 저장
+  
+            newFiles.push({
+              type: "pdf",
+              path: uploadedFile.url,
+              size: formatFileSize(file.size),
+              previewURL: uploadedFilePreview.url,
+              filename: encodedName,
+            });
+  
+            totalAttachments++;
           }
-
-          newFiles.push({
-            type: "image",
-            path: imagePaths.join(", "),
-            size: formatFileSize(images.reduce((total, img) => total + img.size, 0)),
-            images: imagePaths,
-            previewURLs: previewURLs,
-            filenames: filenames,
-          });
-
-          totalAttachments++;
         }
-      }
-
-      // PDF 처리
-      if (req.files.files) {
-        for (const file of req.files.files) {
-          if (totalAttachments >= 5) break;
-
-          // 파일명 정규화 및 인코딩
-          const encodedName = normalizeAndEncodeFileName(file.originalname);
-
-          // 정규화된 파일명으로 업로드
-          const uploadedFile = await uploadFileToS3({
-            ...file,
-            originalname: encodedName
-          });
-          const uploadedFilePreview = await convertPdfToImage({
-            ...file,
-            originalname: encodedName
-          });
-
-          newFiles.push({
-            type: "pdf",
-            path: uploadedFile.url,
-            size: formatFileSize(file.size),
-            previewURL: uploadedFilePreview.url,
-            filename: encodedName,
-          });
-
-          totalAttachments++;
+  
+        // 기타 파일 처리
+        if (req.files.otherFiles) {
+          const otherFiles = Array.isArray(req.files.otherFiles) ? req.files.otherFiles : [req.files.otherFiles];
+          for (const file of otherFiles) {
+            if (totalAttachments >= 5) break;
+  
+            // 파일명 정규화 및 인코딩
+            const encodedName = normalizeAndEncodeFileName(file.originalname);
+  
+            // 정규화된 파일명으로 업로드
+            const uploadedFile = await uploadFileToS3({
+              ...file,
+              originalname: encodedName
+            });
+  
+            newFiles.push({
+              type: "file",
+              path: uploadedFile.url,
+              size: formatFileSize(file.size),
+              previewURL: uploadedFile.url,
+              filename: encodedName,
+            });
+  
+            totalAttachments++;
+          }
         }
-      }
-
-      // 기타 파일 처리
-      if (req.files.otherFiles) {
-        for (const file of req.files.otherFiles) {
-          if (totalAttachments >= 5) break;
-
-          // 파일명 정규화 및 인코딩
-          const encodedName = normalizeAndEncodeFileName(file.originalname);
-
-          // 정규화된 파일명으로 업로드
-          const uploadedFile = await uploadFileToS3({
-            ...file,
-            originalname: encodedName
-          });
-
-          newFiles.push({
-            type: "file",
-            path: uploadedFile.url,
-            size: formatFileSize(file.size),
-            previewURL: uploadedFile.url,
-            filename: encodedName,
-          });
-
-          totalAttachments++;
+  
+        // 기존 파일 + 새로운 파일 병합
+        if (collectionId && collectionId !== reference.collectionId.toString()) {
+          reference.collectionId = new mongoose.Types.ObjectId(collectionId);
         }
+        reference.title = title || reference.title;
+        reference.keywords = updatedKeywordIds;
+        reference.memo = memo || reference.memo;
+        reference.files = [...filesToKeep, ...newFiles];
+  
+        await reference.save();
+  
+        // 키워드 이름 조회
+        const populatedKeywords = await Keyword.find({
+          _id: { $in: reference.keywords },
+        }).lean();
+        const keywordNames = populatedKeywords.map((k) => k.keywordName);
+  
+        res.status(200).json({
+          message: "레퍼런스가 수정되었습니다.",
+          reference: {
+            ...reference.toObject(),
+            keywords: keywordNames,
+            collectionId: reference.collectionId,
+          },
+        });
+      } catch (error) {
+        console.error("Error processing files:", error);
+        return res
+          .status(500)
+          .json({ error: "파일 처리 중 오류가 발생했습니다." });
       }
-
-      // 기존 파일 + 새로운 파일 병합
-      if (collectionId && collectionId !== reference.collectionId.toString()) {
-        reference.collectionId = new mongoose.Types.ObjectId(collectionId);
-      }
-      reference.title = title || reference.title;
-      reference.keywords = updatedKeywordIds;
-      reference.memo = memo || reference.memo;
-      reference.files = [...filesToKeep, ...newFiles];
-
-      await reference.save();
-
-      // 키워드 이름 조회
-      const populatedKeywords = await Keyword.find({
-        _id: { $in: reference.keywords },
-      }).lean();
-      const keywordNames = populatedKeywords.map((k) => k.keywordName);
-
-      res.status(200).json({
-        message: "레퍼런스가 수정되었습니다.",
-        reference: {
-          ...reference.toObject(),
-          keywords: keywordNames,
-          collectionId: reference.collectionId,
-        },
-      });
-    } catch (error) {
-      console.error("Error processing files:", error);
-      return res
-        .status(500)
-        .json({ error: "파일 처리 중 오류가 발생했습니다." });
+    } catch (err) {
+      console.error("Error during reference update:", err.message);
+      res.status(500).json({ error: "레퍼런스 수정 중 오류가 발생했습니다." });
     }
-  } catch (err) {
-    console.error("Error during reference update:", err.message);
-    res.status(500).json({ error: "레퍼런스 수정 중 오류가 발생했습니다." });
-  }
-};
+  };
 
 // 레퍼런스 상세 기능
 export const getReferenceDetail = async (req, res) => {
