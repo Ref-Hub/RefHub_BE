@@ -288,17 +288,7 @@ export const addReference = async (req, res) => {
   }
 };
 
-// 파일명 정규화 및 인코딩 유틸 함수
-const normalizeAndEncodeFileName = (fileName) => {
-  try {
-    const normalized = fileName.normalize("NFC");
-    return encodeURIComponent(normalized);
-  } catch (error) {
-    console.error("파일명 인코딩 오류:", error.message);
-    return fileName;
-  }
-};
-
+// 레퍼런스 수정
 export const updateReference = async (req, res) => {
   try {
     const { referenceId } = req.params;
