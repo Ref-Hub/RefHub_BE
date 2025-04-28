@@ -18,7 +18,7 @@ app.use(
       "https://refhub.my",
       "https://www.refhub.my",
       "https://refhub.vercel.app",
-      "chrome-extension://anbpphbppklgncfnohaofnlhgliadkpo",
+      "chrome-extension://mnkpkmacgacnogdlpjhfkojdcphjeilf",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
