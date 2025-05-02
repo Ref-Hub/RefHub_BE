@@ -1,11 +1,14 @@
 import express from "express";
 import cors from "cors";
 import connectDB from "./db.js";
+import dotenv from "dotenv"
 
 import userRoutes from "./routes/userRoutes.js";
 import collectionRoutes from "./routes/collectionRoutes.js";
 import referenceRoutes from "./routes/referenceRoutes.js";
 import extensionRoutes from "./routes/extensionRoutes.js"
+
+dotenv.config();
 
 const app = express();
 app.use(
@@ -18,7 +21,7 @@ app.use(
       "https://refhub.my",
       "https://www.refhub.my",
       "https://refhub.vercel.app",
-      "chrome-extension://mnkpkmacgacnogdlpjhfkojdcphjeilf",
+      `chrome-extension://${process.env.EXTENSION_ID}`,
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
