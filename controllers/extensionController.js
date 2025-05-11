@@ -127,6 +127,7 @@ export const addReferenceEx = async (req, res, next) => {
     // 컬렉션에 레퍼런스 저장
     const now = new Date()
       .toLocaleString("ko-KR", {
+        timeZone: "Asia/Seoul",
         year: "2-digit",
         month: "2-digit",
         day: "2-digit",
