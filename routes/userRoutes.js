@@ -1,6 +1,9 @@
 import express from 'express';
 import * as userController from '../controllers/userController.js';
 
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { upload } from "../middlewares/profileUpload.js"
+
 const router = express.Router();
 
 // 이메일 인증번호 발송 라우터
@@ -21,5 +24,11 @@ router.post('/token', userController.refreshAccessToken);
 // 비밀번호 재설정 라우터
 router.post('/password/email', userController.resetPasswordEmail);
 router.post('/password/reset', userController.resetPassword);
+
+// 마이페이지 
+router.get('/my-page', authMiddleware, userController.myPage);
+router.patch('/profile-image', authMiddleware, upload.single("file"), userController.resetProfileImage);
+router.delete('/profile-image', authMiddleware, userController.deleteProfileImage);
+router.patch('/user-name', authMiddleware, userController.resetUserName);
 
 export default router;

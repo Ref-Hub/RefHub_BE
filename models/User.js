@@ -22,6 +22,9 @@ const userSchema = new mongoose.Schema({
   },
   deleteRequestDate: {
     type: Date,
+  },
+  profileImage: {
+    type: String,
   }
 },
 { versionKey: false }

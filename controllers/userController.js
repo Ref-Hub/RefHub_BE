@@ -8,6 +8,8 @@ import { smtpTransport } from '../config/email.js';
 import jwt from 'jsonwebtoken';
 import { authenticate } from '../middlewares/authenticate.js';
 import validators from '../middlewares/validators.js';
+import { deleteProfileImageByUrl } from '../middlewares/profileDelete.js';
+import { saveProfileImage } from '../middlewares/profileUpload.js';
 
 const { validateName, validateEmail, validatePassword, validateNewPassword, validateConfirmPassword, validateNewConfirmPassword, validateMiddleware } = validators;
 
@@ -378,3 +380,126 @@ export const resetPassword = [
     }
   },
 ];
+
+// 마이페이지 
+export const myPage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+      const user = await User.findById(userId);
+
+      if(!user) {
+        return res.status(400).send('사용자를 찾을 수 없습니다.');
+      }
+
+      let profileImage = user.profileImage;
+      if(!profileImage) {
+        profileImage = "default image"
+      }
+
+      return res.status(200).json({
+        name : user.name,
+        email : user.email,
+        profileImage
+      })
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "마이페이지에서 오류가 발생했습니다." });
+  }
+  
+}
+
+// 프로필 이미지 변경
+export const resetProfileImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const file = req.file;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: "사용자를 찾을 수 없습니다." });
+    }
+
+    if (!file) {
+      return res.status(400).json({ message: "이미지 파일이 없습니다." });
+    }
+
+    if (!user.profileImage) {
+      console.log("기존 이미지가 존재하지 않습니다. 이미지 업로드만 진행.")
+    } else {
+      // 기존 이미지 s3에서 삭제 
+      const beforeImage = user.profileImage;
+      await deleteProfileImageByUrl(beforeImage);
+    }
+
+    // 새로운 이미지 등록
+    const profileImage = await saveProfileImage(req, file);
+    const result = await User.updateOne(
+          { _id: userId },
+          { profileImage: profileImage.url }
+    );
+    return res.status(200).json({ message: "프로필 이미지를 변경하였습니다." });
+  } catch (err) {
+    console.error("프로필 이미지 업로드 실패:", err.message);
+    return res.status(500).json({ message: "프로필 이미지 업로드 중 오류가 발생했습니다." });
+  }
+}
+
+// 프로필 이미지 삭제
+export const deleteProfileImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: "사용자를 찾을 수 없습니다." });
+    }
+
+    if (!user.profileImage) {
+      console.log("기존 이미지가 존재하지 않습니다. ")
+    } else {
+      // 기존 이미지 s3에서 삭제 
+      const beforeImage = user.profileImage;
+      await deleteProfileImageByUrl(beforeImage);
+      await User.updateOne(
+        { _id: userId },
+        { $unset: { profileImage: "" } }
+      );
+    }
+    return res.status(200).json({ message: "프로필 이미지를 삭제하였습니다." });
+
+  } catch (err) {
+    return res.status(500).json({ message: "프로필 삭제 중 오류가 발생했습니다." });
+  }
+}
+  
+
+// 이름 변경 
+export const resetUserName = async (req, res) => {
+try {
+    const { newName } = req.body;
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+        return res.status(400).send('사용자를 찾을 수 없습니다.');
+      }
+
+    if (!newName) {
+      return res.status(200).json({ message : "입력값이 존재하지 않습니다. 기존 이름 유지" });
+    } else {
+      const regex = /^[ㄱ-ㅎ|가-힣|a-z|A-Z|]+$/;
+      if (!regex.test(newName) || newName.length>10) { // 이름 형식 검증
+        return res.status(400).json({ message : "이름의 형식이 올바르지 않습니다."});
+      } else {
+        const result = await User.updateOne(
+          { _id: userId },
+          { name: newName }
+        );
+        return res.status(200).json({ message: "사용자 이름을 변경하였습니다."})
+      }
+    }
+  } catch (err) {
+    console.error("마이페이지 사용자 이름 변경 중 오류가 발생하였습니다.", err);
+    return res.status(500).json({ message: "마이페이지 사용자 이름 변경 중 오류가 발생하였습니다."})
+  }
+};
