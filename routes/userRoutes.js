@@ -25,6 +25,14 @@ router.post('/token', userController.refreshAccessToken);
 router.post('/password/email', userController.resetPasswordEmail);
 router.post('/password/reset', userController.resetPassword);
 
+// 카카오 로그인 라우터
+router.get('/kakao', kakaoController.kakaoLogin);
+router.get(
+  '/kakao/callback',
+  passport.authenticate('kakao', { failureRedirect: '/login', session: false }),
+  kakaoController.kakaoCallback
+);
+
 // 마이페이지 
 router.get('/my-page', authMiddleware, userController.myPage);
 router.patch('/profile-image', authMiddleware, upload.single("file"), userController.resetProfileImage);
