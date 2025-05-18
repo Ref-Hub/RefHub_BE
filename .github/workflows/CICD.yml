@@ -57,7 +57,9 @@ jobs:
                   AWS_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
                   S3_BUCKET_NAME: '${{ secrets.S3_BUCKET_NAME }}',
                   S3_BASE_URL: '${{ secrets.S3_BASE_URL }}',
-                  EXTENSION_ID: '${{ vars.EXTENSION_ID }}'
+                  EXTENSION_ID: '${{ vars.EXTENSION_ID }}',
+                  KAKAO_REST_API_KEY: '${{ secrets.KAKAO_REST_API_KEY }}',
+                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI }}'
                 }
               }]
             };" > ecosystem.prod.config.cjs
@@ -84,7 +86,9 @@ jobs:
                   AWS_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}',
                   S3_BUCKET_NAME: '${{ secrets.S3_BUCKET_NAME }}',
                   S3_BASE_URL: '${{ secrets.S3_BASE_URL }}',
-                  EXTENSION_ID: '${{ vars.EXTENSION_ID }}'
+                  EXTENSION_ID: '${{ vars.EXTENSION_ID }}',
+                  KAKAO_REST_API_KEY: '${{ secrets.KAKAO_REST_API_KEY }}',
+                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI }}'
                 }
               }]
             };" > ecosystem.dev.config.cjs
