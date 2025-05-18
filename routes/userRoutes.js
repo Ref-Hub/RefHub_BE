@@ -1,5 +1,8 @@
 import express from 'express';
+import passport from 'passport';
+
 import * as userController from '../controllers/userController.js';
+import * as kakaoController from '../controllers/kakaoController.js';
 
 import { authMiddleware } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/profileUpload.js"
