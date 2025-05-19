@@ -25,7 +25,12 @@ const userSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String,
-  }
+  },
+  provider: {
+    type: String,
+    enum: ['local', 'kakao'],
+    default: 'local',
+  },
 },
 { versionKey: false }
 );

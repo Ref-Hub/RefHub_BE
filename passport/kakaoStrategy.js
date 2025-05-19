@@ -23,6 +23,7 @@ passport.use(
             email: kakaoEmail,
             password: '',
             profileImage,
+            provider: 'kakao',
           });
         }
 
