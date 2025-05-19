@@ -10,28 +10,31 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const kakaoEmail = profile._json.kakao_account.email;
-        const name = profile.displayName;
-        const profileImage =
-          profile._json.kakao_account.profile?.profile_image_url || null;
+        const kakaoAccount = profile._json.kakao_account;
+        console.log('카카오 로그인 이메일:', kakaoAccount.email);
 
-        let user = await User.findOne({ email: kakaoEmail });
+        if (!kakaoAccount.email) {
+          console.error('이메일 없음');
+          return done(new Error('이메일 누락'), null);
+        }
+
+        let user = await User.findOne({ email: kakaoAccount.email });
 
         if (!user) {
           user = await User.create({
-            name,
-            email: kakaoEmail,
+            name: profile.displayName,
+            email: kakaoAccount.email,
             password: '',
-            profileImage,
+            profileImage: kakaoAccount.profile?.profile_image_url,
             provider: 'kakao',
           });
         }
 
         return done(null, user);
       } catch (err) {
+        console.error('카카오 전략 내부 에러:', err);
         return done(err, null);
       }
     }
   )
 );
-

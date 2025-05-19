@@ -33,7 +33,16 @@ router.post('/password/reset', userController.resetPassword);
 router.get('/kakao', kakaoController.kakaoLogin);
 router.get(
   '/kakao/callback',
-  passport.authenticate('kakao', { failureRedirect: '/login', session: false }),
+  (req, res, next) => {
+    passport.authenticate('kakao', { session: false }, (err, user, info) => {
+      if (err || !user) {
+        console.error('카카오 로그인 실패:', err || 'user 없음');
+        return res.redirect('/login');
+      }
+      req.user = user;
+      next();
+    })(req, res, next);
+  },
   kakaoController.kakaoCallback
 );
 
