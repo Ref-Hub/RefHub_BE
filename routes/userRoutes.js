@@ -31,20 +31,8 @@ router.post('/password/reset', userController.resetPassword);
 
 // 카카오 로그인 라우터
 router.get('/kakao', kakaoController.kakaoLogin);
-router.get(
-  '/kakao/callback',
-  (req, res, next) => {
-    passport.authenticate('kakao', { session: false }, (err, user, info) => {
-      if (err || !user) {
-        console.error('카카오 로그인 실패:', err || 'user 없음');
-        return res.redirect('/login');
-      }
-      req.user = user;
-      next();
-    })(req, res, next);
-  },
-  kakaoController.kakaoCallback
-);
+router.get('/kakao/callback', kakaoController.kakaoCallbackHandler, kakaoController.kakaoCallback);
+router.post('/kakao/link', kakaoController.linkKakaoAccount);
 
 // 마이페이지 
 router.get('/my-page', authMiddleware, userController.myPage);

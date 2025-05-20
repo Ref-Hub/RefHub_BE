@@ -59,6 +59,10 @@ export const authEmail = [
     try {
       const existingUser = await User.findOne({ email });
 
+      if (existingUser && existingUser.provider !== 'local') {
+        return res.status(400).send('카카오 로그인으로 가입된 이메일입니다.');
+      }
+
       if (existingUser && existingUser.password) {
         return res.status(400).send('이미 가입된 이메일입니다.');
       }
@@ -132,6 +136,10 @@ export const createUser = [
         return res.status(400).send('사용자를 찾을 수 없습니다.');
       }
 
+      if (user.provider !== 'local') {
+        return res.status(400).send('카카오 로그인으로 가입된 이메일입니다.');
+      }
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
       user.password = hashedPassword;
@@ -197,6 +205,10 @@ export const loginUser = [
 
       if (!user) {
         return res.status(404).send('등록되지 않은 이메일입니다.');
+      }
+
+      if (user.provider !== 'local') {
+        return res.status(400).send('해당 계정은 카카오 로그인 전용 계정입니다.');
       }
 
       // 탈퇴 요청 후 7일이 지난 경우 계정 삭제 처리
