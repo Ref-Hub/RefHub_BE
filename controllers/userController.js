@@ -211,6 +211,8 @@ export const loginUser = [
         return res.status(400).send('해당 계정은 카카오 로그인 전용 계정입니다.');
       }
 
+      let recovered = false;
+
       // 탈퇴 요청 후 7일이 지난 경우 계정 삭제 처리
       if (user.deleteRequestDate) {
         const timeElapsed = new Date() - user.deleteRequestDate;
@@ -222,10 +224,12 @@ export const loginUser = [
 
         // 7일 이내 로그인 시 계정 복구
         user.deleteRequestDate = undefined;
+        recovered = true;
         await user.save();
       }
 
       req.user = user;
+      req.recovered = recovered;
       next();
     } catch (error) {
       console.error('로그인 중 오류가 발생했습니다.:', error);
@@ -264,7 +268,7 @@ export const loginUser = [
         await user.save();
       }
 
-      res.status(200).json({ message: '로그인이 완료되었습니다.', accessToken, refreshToken, autoLogin });
+      res.status(200).json({ message: '로그인이 완료되었습니다.', accessToken, refreshToken, autoLogin, recovered: req.recovered || false });
     } catch (error) {
       console.error('로그인 중 오류가 발생했습니다.:', error);
       res.status(500).send('로그인 중 오류가 발생했습니다.');
