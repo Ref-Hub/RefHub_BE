@@ -266,6 +266,10 @@ export const addReference = async (req, res) => {
     });
 
     await reference.save();
+    await Collection.updateOne(
+      { _id: reference.collectionId },
+      { $set: { updatedAt: reference.updatedAt } }
+    );
 
     // 키워드 이름 조회
     const populatedKeywords = await Keyword.find({
@@ -471,6 +475,10 @@ export const updateReference = async (req, res) => {
     reference.files = [...filesToKeep, ...newFiles];
 
     await reference.save();
+    await Collection.updateOne(
+      { _id: reference.collectionId },
+      { $set: { updatedAt: reference.updatedAt } }
+    );
 
     const populatedKeywords = await Keyword.find({ _id: { $in: reference.keywords } }).lean();
     const keywordNames = populatedKeywords.map((k) => k.keywordName);
