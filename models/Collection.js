@@ -11,13 +11,13 @@ const collSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
-    createdAt: { type: Date, default: () => Date.now() },
+    }
   },
   {
     versionKey: false,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {virtuals: true},
+    toObject: {virtuals: true},
+    timestamps: true,
   }
 );
 
