@@ -22,6 +22,23 @@ passport.use(
         const user = await User.findOne({ email: kakaoEmail });
 
         if (user) {
+          // 계정 복구 체크
+          let recovered = false;
+          if (user.deleteRequestDate) {
+            const timeElapsed = new Date() - user.deleteRequestDate;
+            
+            if (timeElapsed >= 7 * 24 * 60 * 60 * 1000) {
+              // 7일이 지난 경우 계정 삭제
+              await User.deleteOne({ _id: user._id });
+              return done(new Error('계정이 삭제되었습니다. 다시 가입해주세요.'), null);
+            }
+            
+            // 7일 이내 로그인 시 계정 복구
+            user.deleteRequestDate = undefined;
+            recovered = true;
+            await user.save();
+          }
+
           // 로컬 가입자인 경우 프론트로 연동 필요 전달
           if (user.provider === 'local') {
             return done(null, false, {
@@ -33,6 +50,9 @@ passport.use(
               },
             });
           }
+          
+          // 복구 정보를 user 객체에 추가
+          user.recovered = recovered;
           return done(null, user);
         }
 

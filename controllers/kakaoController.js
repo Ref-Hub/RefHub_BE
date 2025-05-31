@@ -33,6 +33,7 @@ export const kakaoCallbackHandler = (req, res, next) => {
     }
 
     req.user = user;
+    req.recovered = user.recovered || false; // 복구 여부 전달
     next();
   })(req, res, next);
 };
@@ -40,6 +41,7 @@ export const kakaoCallbackHandler = (req, res, next) => {
 // 카카오 로그인 완료 후 JWT 발급
 export const kakaoCallback = (req, res) => {
   const user = req.user;
+  const recovered = req.recovered || false; // 복구 여부 확인
 
   const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: '1h',
@@ -50,7 +52,9 @@ export const kakaoCallback = (req, res) => {
       ? 'https://www.refhub.my'
       : 'http://localhost:5173';
 
-  res.redirect(`${redirectBase}/users/kakao-login?token=${token}`);
+  // recovered 파라미터 추가
+  const recoveredParam = recovered ? '&recovered=true' : '';
+  res.redirect(`${redirectBase}/users/kakao-login?token=${token}${recoveredParam}`);
 };
 
 // 카카오 계정 연동 API
