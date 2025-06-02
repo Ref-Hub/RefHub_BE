@@ -22,7 +22,7 @@ export const downloadFileFromS3 = async (req, res) => {
     }
 
     // URL에서 S3 키 추출 - 이미 인코딩된 URL 디코딩
-    const fileKey = decodeURIComponent(new URL(fileUrl).pathname.substring(1));
+    const fileKey = new URL(fileUrl).pathname.substring(1);
     console.log("S3에서 검색할 파일 키:", fileKey);
 
     // S3에서 파일 가져오기

@@ -28,6 +28,8 @@ const referenceSchema = new mongoose.Schema({
   { versionKey: "__v", optimisticConcurrency: true, timestamps: true, }
 );
 
+referenceSchema.index({updatedAt: -1});
+
 function keywordsValidation(keywords) {
   return keywords.every((kw) => kw.length <= 15);
 }

@@ -1,5 +1,12 @@
 import express from 'express';
+import passport from 'passport';
+import '../passport/kakaoStrategy.js';
+
 import * as userController from '../controllers/userController.js';
+import * as kakaoController from '../controllers/kakaoController.js';
+
+import { authMiddleware } from "../middlewares/authMiddleware.js";
+import { upload } from "../middlewares/profileUpload.js"
 
 const router = express.Router();
 
@@ -21,5 +28,16 @@ router.post('/token', userController.refreshAccessToken);
 // 비밀번호 재설정 라우터
 router.post('/password/email', userController.resetPasswordEmail);
 router.post('/password/reset', userController.resetPassword);
+
+// 카카오 로그인 라우터
+router.get('/kakao', kakaoController.kakaoLogin);
+router.get('/kakao/callback', kakaoController.kakaoCallbackHandler, kakaoController.kakaoCallback);
+router.post('/kakao/link', kakaoController.linkKakaoAccount);
+
+// 마이페이지 
+router.get('/my-page', authMiddleware, userController.myPage);
+router.patch('/profile-image', authMiddleware, upload.single("file"), userController.resetProfileImage);
+router.delete('/profile-image', authMiddleware, userController.deleteProfileImage);
+router.patch('/user-name', authMiddleware, userController.resetUserName);
 
 export default router;

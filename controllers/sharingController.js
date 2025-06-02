@@ -108,10 +108,15 @@ const getSharedUsers = async (req, res, next) => {
       _id: owner._id,
       name: owner.name,
       email: owner.email,
+      profileImage: owner.profileImage || "default image",
     };
-    const sharing = await CollectionShare.find({ collectionId })
-      .populate("userId", "name email")
-      .lean();
+    const sharing = (await CollectionShare.find({collectionId}).populate("userId", "name email profileImage").lean()).map((s) => ({
+      ...s,
+      userId: {
+        ...s.userId,
+        profileImage: s.userId?.profileImage || "default image",
+      }
+    }));
 
     return res.status(StatusCodes.OK).json({
       owner: modefiedOwner,

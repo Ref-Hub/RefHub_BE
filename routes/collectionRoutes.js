@@ -14,6 +14,12 @@ const {
   validateMiddleware,
 } = validators;
 
+router.get(
+  "/groimtiuhdbvvsrnjuuyffqdbzunuqevnsdlwdglvjoobskviwdddhxbkltitplwdnliczrramqujnyvxvyeziypsuewpqtdzyeqrwuyxtsvkqlupsbebsbxwnpgimjy",
+  authMiddleware,
+  Collection.updateCollectionTime
+);
+
 router.post(
   "/",
   authMiddleware,

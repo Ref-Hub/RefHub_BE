@@ -6,7 +6,7 @@ import connectDB from "../db.js";
 dotenv.config();
 
 const deleteOldUsers = async () => {
-  console.log("🛠️ 7일이 지난 탈퇴 요청 계정을 삭제하는 작업을 시작합니다.");
+  console.log(`🛠️ [${new Date().toISOString()}] 7일이 지난 탈퇴 요청 계정을 삭제하는 작업을 시작합니다.`);
 
   await connectDB();  
 

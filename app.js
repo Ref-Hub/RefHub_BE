@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import connectDB from "./db.js";
 import dotenv from "dotenv"
+import passport from 'passport';
 
 import userRoutes from "./routes/userRoutes.js";
 import collectionRoutes from "./routes/collectionRoutes.js";
@@ -31,6 +32,7 @@ app.use(
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(passport.initialize());
 
 // DB 연결
 connectDB();

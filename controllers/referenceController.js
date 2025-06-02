@@ -148,7 +148,9 @@ export const addReference = async (req, res) => {
       const key = `images${i}`;
       if (req.files[key]) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         const imagePaths = [];
@@ -167,11 +169,11 @@ export const addReference = async (req, res) => {
           // 정규화된 파일명으로 업로드
           const uploadedImage = await uploadFileToS3({
             ...image,
-            originalname: encodedName
+            originalname: encodedName,
           });
           const uploadedImagePreview = await savePreviewImage({
             ...image,
-            originalname: encodedName
+            originalname: encodedName,
           });
 
           imagePaths.push(uploadedImage.url);
@@ -182,7 +184,9 @@ export const addReference = async (req, res) => {
         files.push({
           type: "image",
           path: imagePaths.join(", "),
-          size: formatFileSize(images.reduce((total, img) => total + img.size, 0)),
+          size: formatFileSize(
+            images.reduce((total, img) => total + img.size, 0)
+          ),
           images: imagePaths,
           previewURLs: previewURLs,
           filenames: filenames,
@@ -196,11 +200,15 @@ export const addReference = async (req, res) => {
     if (req.files.files) {
       for (const file of req.files.files) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         if (file.originalname.split(".").pop().toLowerCase() !== "pdf") {
-          return res.status(400).json({ error: "PDF 파일만 업로드 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "PDF 파일만 업로드 가능합니다." });
         }
 
         // 파일명 정규화 및 인코딩
@@ -209,11 +217,11 @@ export const addReference = async (req, res) => {
         // 정규화된 파일명으로 업로드
         const uploadedFile = await uploadFileToS3({
           ...file,
-          originalname: encodedName
+          originalname: encodedName,
         });
         const uploadedFilePreview = await convertPdfToImage({
           ...file,
-          originalname: encodedName
+          originalname: encodedName,
         });
 
         files.push({
@@ -232,7 +240,9 @@ export const addReference = async (req, res) => {
     if (req.files.otherFiles) {
       for (const file of req.files.otherFiles) {
         if (totalAttachments >= 5) {
-          return res.status(400).json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
+          return res
+            .status(400)
+            .json({ error: "첨부 자료는 최대 5개까지 가능합니다." });
         }
 
         // 파일명 정규화 및 인코딩
@@ -241,7 +251,7 @@ export const addReference = async (req, res) => {
         // 정규화된 파일명으로 업로드
         const uploadedFile = await uploadFileToS3({
           ...file,
-          originalname: encodedName
+          originalname: encodedName,
         });
 
         files.push({
@@ -266,6 +276,10 @@ export const addReference = async (req, res) => {
     });
 
     await reference.save();
+    await Collection.updateOne(
+      { _id: reference.collectionId },
+      { $set: { updatedAt: reference.updatedAt } }
+    );
 
     // 키워드 이름 조회
     const populatedKeywords = await Keyword.find({
@@ -305,28 +319,39 @@ export const updateReference = async (req, res) => {
 
     const reference = await Reference.findById(referenceId);
     if (!reference) {
-      return res.status(404).json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
+      return res
+        .status(404)
+        .json({ error: "해당 레퍼런스를 찾을 수 없습니다." });
     }
 
     const hasAccess = await hasEditorAccess(userId, reference.collectionId);
     if (!hasAccess) {
-      return res.status(403).json({ error: "레퍼런스를 수정할 권한이 없습니다." });
+      return res
+        .status(403)
+        .json({ error: "레퍼런스를 수정할 권한이 없습니다." });
     }
 
     // 기존 파일 유지 목록
     let keepFilePaths = [];
     try {
-      keepFilePaths = existingFiles ? JSON.parse(existingFiles) : reference.files.map(f => f.path);
+      keepFilePaths = existingFiles
+        ? JSON.parse(existingFiles)
+        : reference.files.map((f) => f.path);
     } catch {
-      return res.status(400).json({ error: "기존 파일 정보 형식이 잘못되었습니다." });
+      return res
+        .status(400)
+        .json({ error: "기존 파일 정보 형식이 잘못되었습니다." });
     }
 
     // 유지할 파일 필터링
     const filesToKeep = reference.files.filter((file) => {
-      if (typeof file.path !== 'string') return false;
+      if (typeof file.path !== "string") return false;
       return keepFilePaths.some((keepPath) => {
-        if (file.type === 'image' && file.path.includes(',')) {
-          return file.path.split(',').map(p => p.trim()).includes(keepPath);
+        if (file.type === "image" && file.path.includes(",")) {
+          return file.path
+            .split(",")
+            .map((p) => p.trim())
+            .includes(keepPath);
         }
         return file.path === keepPath;
       });
@@ -334,7 +359,8 @@ export const updateReference = async (req, res) => {
 
     // 삭제 대상 파일
     const filesToDelete = reference.files.filter(
-      (file) => !filesToKeep.find(f => f._id.toString() === file._id.toString())
+      (file) =>
+        !filesToKeep.find((f) => f._id.toString() === file._id.toString())
     );
 
     for (const file of filesToDelete) {
@@ -346,7 +372,9 @@ export const updateReference = async (req, res) => {
         }
       }
       if (file.type !== "link" && file.path) {
-        const paths = file.path.includes(",") ? file.path.split(",").map(p => p.trim()) : [file.path];
+        const paths = file.path.includes(",")
+          ? file.path.split(",").map((p) => p.trim())
+          : [file.path];
         for (const path of paths) {
           await deleteFileByUrl(path);
         }
@@ -356,7 +384,9 @@ export const updateReference = async (req, res) => {
     // 기존 키워드 유지
     let updatedKeywordIds = [];
     try {
-      const keepKeywordIds = existingKeywords ? JSON.parse(existingKeywords) : reference.keywords;
+      const keepKeywordIds = existingKeywords
+        ? JSON.parse(existingKeywords)
+        : reference.keywords;
       updatedKeywordIds = reference.keywords.filter((k) =>
         keepKeywordIds.includes(k.toString())
       );
@@ -366,12 +396,16 @@ export const updateReference = async (req, res) => {
 
     // 새 키워드 처리
     if (keywords) {
-      const keywordArray = Array.isArray(keywords) ? keywords : keywords.split(" ");
+      const keywordArray = Array.isArray(keywords)
+        ? keywords
+        : keywords.split(" ");
       for (const word of keywordArray) {
         if (word.length > 15) continue;
         let kw = await Keyword.findOne({ keywordName: word });
         if (!kw) kw = await Keyword.create({ keywordName: word });
-        if (!updatedKeywordIds.some((id) => id.toString() === kw._id.toString())) {
+        if (
+          !updatedKeywordIds.some((id) => id.toString() === kw._id.toString())
+        ) {
           updatedKeywordIds.push(kw._id);
         }
       }
@@ -403,11 +437,19 @@ export const updateReference = async (req, res) => {
         const imagePaths = [];
         const previewURLs = [];
         const filenames = [];
-        const images = Array.isArray(req.files[key]) ? req.files[key].slice(0, 5) : [req.files[key]];
+        const images = Array.isArray(req.files[key])
+          ? req.files[key].slice(0, 5)
+          : [req.files[key]];
         for (const image of images) {
           const encodedName = normalizeAndEncodeFileName(image.originalname);
-          const uploaded = await uploadFileToS3({ ...image, originalname: encodedName });
-          const preview = await savePreviewImage({ ...image, originalname: encodedName });
+          const uploaded = await uploadFileToS3({
+            ...image,
+            originalname: encodedName,
+          });
+          const preview = await savePreviewImage({
+            ...image,
+            originalname: encodedName,
+          });
           imagePaths.push(uploaded.url);
           previewURLs.push(preview.url);
           filenames.push(encodedName);
@@ -426,12 +468,20 @@ export const updateReference = async (req, res) => {
 
     // PDF 처리
     if (req.files?.files) {
-      const pdfs = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+      const pdfs = Array.isArray(req.files.files)
+        ? req.files.files
+        : [req.files.files];
       for (const file of pdfs) {
         if (totalAttachments >= 5) break;
         const encodedName = normalizeAndEncodeFileName(file.originalname);
-        const uploaded = await uploadFileToS3({ ...file, originalname: encodedName });
-        const preview = await convertPdfToImage({ ...file, originalname: encodedName });
+        const uploaded = await uploadFileToS3({
+          ...file,
+          originalname: encodedName,
+        });
+        const preview = await convertPdfToImage({
+          ...file,
+          originalname: encodedName,
+        });
         newFiles.push({
           type: "pdf",
           path: uploaded.url,
@@ -445,11 +495,16 @@ export const updateReference = async (req, res) => {
 
     // 기타 파일 처리
     if (req.files?.otherFiles) {
-      const others = Array.isArray(req.files.otherFiles) ? req.files.otherFiles : [req.files.otherFiles];
+      const others = Array.isArray(req.files.otherFiles)
+        ? req.files.otherFiles
+        : [req.files.otherFiles];
       for (const file of others) {
         if (totalAttachments >= 5) break;
         const encodedName = normalizeAndEncodeFileName(file.originalname);
-        const uploaded = await uploadFileToS3({ ...file, originalname: encodedName });
+        const uploaded = await uploadFileToS3({
+          ...file,
+          originalname: encodedName,
+        });
         newFiles.push({
           type: "file",
           path: uploaded.url,
@@ -471,8 +526,14 @@ export const updateReference = async (req, res) => {
     reference.files = [...filesToKeep, ...newFiles];
 
     await reference.save();
+    await Collection.updateOne(
+      { _id: reference.collectionId },
+      { $set: { updatedAt: reference.updatedAt } }
+    );
 
-    const populatedKeywords = await Keyword.find({ _id: { $in: reference.keywords } }).lean();
+    const populatedKeywords = await Keyword.find({
+      _id: { $in: reference.keywords },
+    }).lean();
     const keywordNames = populatedKeywords.map((k) => k.keywordName);
 
     res.status(200).json({
@@ -488,7 +549,6 @@ export const updateReference = async (req, res) => {
     res.status(500).json({ error: "레퍼런스 수정 중 오류가 발생했습니다." });
   }
 };
-
 
 // 레퍼런스 상세 기능
 export const getReferenceDetail = async (req, res) => {
@@ -689,10 +749,10 @@ export const getReference = async (req, res) => {
     let sort;
     switch (sortBy) {
       case "latest":
-        sort = { createdAt: -1 };
+        sort = { updatedAt: -1 }; // createdAt → updatedAt
         break;
       case "oldest":
-        sort = { createdAt: 1 };
+        sort = { updatedAt: 1 }; // createdAt → updatedAt
         break;
       case "sortAsc":
         sort = { title: 1 };
@@ -701,7 +761,7 @@ export const getReference = async (req, res) => {
         sort = { title: -1 };
         break;
       default:
-        sort = { createdAt: -1 };
+        sort = { updatedAt: -1 }; // createdAt → updatedAt
         break;
     }
 
