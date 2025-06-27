@@ -4,6 +4,7 @@ import CollectionShare from "../models/CollectionShare.js";
 import Reference from "../models/Reference.js";
 import Keyword from "../models/Keyword.js";
 import Extension from "../models/Extension.js";
+import OGImageCache from "../models/OGImageCache.js";
 
 import {StatusCodes} from "http-status-codes";
 import {deleteFileByUrl} from "../middlewares/fileDelete.js";
@@ -11,12 +12,32 @@ import {deletePreviewByUrl} from "../middlewares/previewDelete.js";
 import {MongoError} from "mongodb";
 import ogs from "open-graph-scraper";
 
+
 async function getOGImage(url) {
+  // 캐시에서 먼저 확인
+  const cachedImage = await OGImageCache.findOne({url});
+
+  // 캐시된 이미지가 있고, 생성된 지 7일 이내라면 캐시된 이미지 반환
+  if (cachedImage && Date.now() - cachedImage.createdAt.getTime() < 7 * 24 * 60 * 60 * 1000) {
+    return cachedImage.imageUrl;
+  }
+
   try {
     const {result} = await ogs({url});
-    return result.ogImage[0]?.url || null;
+    const ogImageUrl = result.ogImage?.[0]?.url || null;
+
+    // 캐시 업데이트 또는 새로 생성
+    await OGImageCache.findOneAndUpdate(
+      {url},
+      {imageUrl: ogImageUrl, createdAt: new Date()}, // createdAt을 현재 시간으로 업데이트, TTL 갱신
+      {upsert: true, new: true} // 없으면 생성, 있으면 업데이트
+    );
+
+    return ogImageUrl;
   } catch (err) {
-    console.log(`OG Image fetch error (${url}:)`, err.message);
+    console.log(`OG Image fetch error (${url}):`, err.message);
+    // 에러 발생 시에도 캐시에 null 또는 에러 상태를 저장하여 불필요 요청 방지
+    await OGImageCache.findOneAndUpdate({url}, {imageUrl: null, createdAt: new Date()}, {upsert: true, new: true});
     return null;
   }
 }
@@ -157,49 +178,6 @@ const getCollection = async (req, res, next) => {
             }
           })
         );
-
-        // const refList = references.filter((ref) => ref.collectionId.equals(item._id));
-
-        // // 프리뷰 이미지
-        // const relevantReferences = refList.slice(-4).reverse();
-
-        // const URLs = [];
-        // for (const ref of relevantReferences) {
-        //   if (Array.isArray(ref.files)) {
-        //     for (const file of ref.files) {
-        //       switch (file.type) {
-        //         case "image":
-        //           URLs.push(...file.previewURLs.map((url) => ({type: file.type, url})));
-        //           break;
-        //         case "link":
-        //         case "pdf":
-        //         default:
-        //           URLs.push({type: file.type, url: file.previewURL});
-        //           break;
-        //       }
-        //       if (URLs.length >= 4) break;
-        //     }
-        //   }
-        //   if (URLs.length >= 4) break;
-        // }
-
-        // let previewImages = await Promise.all(
-        //   URLs.map(async (file) => {
-        //     try {
-        //       switch (file.type) {
-        //         case "link":
-        //           return getOGImage(file.url);
-        //         case "image":
-        //         case "pdf":
-        //           return file.url;
-        //         default:
-        //           return null;
-        //       }
-        //     } catch (err) {
-        //       return null;
-        //     }
-        //   })
-        // );
 
         const sharedEntry = collectionShared.find(
           (share) => share.collectionId.equals(item._id) && share.userId.equals(userId)
@@ -495,6 +473,7 @@ const toggleFavorite = async (req, res, next) => {
   }
 };
 
+// updatedAt 없는 컬렉션, 레퍼런스를 위한 코드 (일회용)
 const updateCollectionTime = async (req, res, next) => {
   try {
     // updatedAt 없는 레퍼런스 업데이트
@@ -513,11 +492,12 @@ const updateCollectionTime = async (req, res, next) => {
         .sort({updatedAt: -1}) // 가장 최신 updatedAt
         .select("updatedAt");
       if (latestRef) {
-        await Collection.updateOne(
+        const result = await Collection.updateOne(
           {_id: doc._id},
           {$set: {updatedAt: latestRef.updatedAt}},
           {timestamps: false} // 자동 updatedAt 덮어쓰기 방지
         );
+        console.log(result);
       }
     }
     console.log("✅ 컬렉션 updatedAt 동기화 완료");
