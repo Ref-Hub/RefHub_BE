@@ -20,10 +20,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm' # 이 캐시는 러너의 캐시이며, 빌드 속도 향상에 도움을 줍니다.
+          cache: 'npm'
 
-      - name: 📦 의존성 설치 (러너 작업 공간에 설치)
-        # 이 스텝에서 모든 의존성이 러너의 임시 디렉토리에 설치됩니다.
+      - name: 📦 의존성 설치
         run: npm ci
 
       - name: ⚙️ 프로젝트 빌드
@@ -31,27 +30,13 @@ jobs:
 
       - name: ✅ 테스트 실행
         run: npm test
-          
+      
       - name: 🚀 EC2에 배포
         run: |
-          # EC2의 프로젝트 디렉토리로 이동
           cd ~/RefHub_BE
-          
-          # 🚨 중요: 기존 node_modules 폴더가 있다면 먼저 삭제하여 공간을 확보하고 중복 설치 방지
-          if [ -d "node_modules" ]; then
-            echo "기존 ~/RefHub_BE/node_modules 삭제 중..."
-            rm -rf node_modules
-          fi
-
-          # 최신 코드 pull
           git pull --no-rebase origin ${{ github.ref_name }}
-
-          # 🚨 핵심 변경: EC2 서버에서 npm install을 제거하고, 대신 러너에서 설치된 node_modules를 복사
-          # ${{ github.workspace }}는 GitHub Actions 러너의 현재 작업 디렉토리 (즉, npm ci가 실행된 곳)
-          echo "러너의 node_modules를 EC2 프로젝트로 복사 중..."
-          cp -r ${{ github.workspace }}/node_modules . # 현재 디렉토리(~/RefHub_BE)로 복사
-
-          # PM2 ecosystem 파일 생성 및 PM2 명령 실행 (기존과 동일)
+          npm install
+      
           if [[ "${{ github.ref_name }}" == "main" ]]; then
             echo "운영용 ecosystem.prod.config.cjs 생성"
             echo "module.exports = {
@@ -74,11 +59,13 @@ jobs:
                   S3_BASE_URL: '${{ secrets.S3_BASE_URL }}',
                   EXTENSION_ID: '${{ vars.EXTENSION_ID }}',
                   KAKAO_REST_API_KEY: '${{ secrets.KAKAO_REST_API_KEY }}',
-                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI_PROD }}'
+                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI }}'
                 }
               }]
             };" > ecosystem.prod.config.cjs
+      
             pm2 start ecosystem.prod.config.cjs --only app-prod || pm2 restart app-prod
+      
           else
             echo "개발용 ecosystem.dev.config.cjs 생성"
             echo "module.exports = {
@@ -101,21 +88,11 @@ jobs:
                   S3_BASE_URL: '${{ secrets.S3_BASE_URL }}',
                   EXTENSION_ID: '${{ vars.EXTENSION_ID }}',
                   KAKAO_REST_API_KEY: '${{ secrets.KAKAO_REST_API_KEY }}',
-                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI_DEV }}'
+                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI }}'
                 }
               }]
             };" > ecosystem.dev.config.cjs
+      
             pm2 start ecosystem.dev.config.cjs --only app-dev || pm2 restart app-dev
           fi
-        shell: bash
-
-      - name: 🗑️ 러너 작업 공간 정리 (배포 완료 후)
-        # 이 스텝은 배포 성공/실패와 무관하게 항상 실행되어 러너의 임시 공간을 비웁니다.
-        if: always()
-        run: |
-          echo "러너 작업 공간의 node_modules 및 캐시 정리 중..."
-          # 러너의 현재 작업 디렉토리(여기서는 ~/actions-runner/_work/RefHub_BE/RefHub_BE/)에 있는 node_modules 삭제
-          rm -rf ${{ github.workspace }}/node_modules
-          # npm 캐시도 정리하여 혹시 모를 공간 부족에 대비
-          npm cache clean --force
         shell: bash
