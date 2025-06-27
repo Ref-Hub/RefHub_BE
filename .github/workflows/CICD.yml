@@ -13,7 +13,7 @@ jobs:
         node-version: [20.x]
 
     steps:
-      - name: 📂 리포지토리 체크아웃
+      - name: 📂 리포지토리 체크아웃 
         uses: actions/checkout@v4
 
       - name: ⚙️ Node.js ${{ matrix.node-version }} 설정
