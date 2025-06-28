@@ -59,7 +59,7 @@ jobs:
                   S3_BASE_URL: '${{ secrets.S3_BASE_URL }}',
                   EXTENSION_ID: '${{ vars.EXTENSION_ID }}',
                   KAKAO_REST_API_KEY: '${{ secrets.KAKAO_REST_API_KEY }}',
-                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI }}'
+                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI_PROD }}'
                 }
               }]
             };" > ecosystem.prod.config.cjs
@@ -88,7 +88,7 @@ jobs:
                   S3_BASE_URL: '${{ secrets.S3_BASE_URL }}',
                   EXTENSION_ID: '${{ vars.EXTENSION_ID }}',
                   KAKAO_REST_API_KEY: '${{ secrets.KAKAO_REST_API_KEY }}',
-                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI }}'
+                  KAKAO_REDIRECT_URI: '${{ secrets.KAKAO_REDIRECT_URI_DEV }}'
                 }
               }]
             };" > ecosystem.dev.config.cjs
